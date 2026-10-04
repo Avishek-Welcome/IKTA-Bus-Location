@@ -1,7 +1,7 @@
 // IKTA Bus — Owner console: one-time-code registration, fleet & driver account management, live fleet map.
 import {
   $, $$, esc, boot, toast, icon, modal, confirmBox, setBusy, idToEmail, USER_ID_RE, passwordOk, generatePassword,
-  attachStrength, wirePasswordToggles, friendlyError, keyOf, colorFor, busIcon, setBusHeading, setBusSpeed, speedChip, createMap, glide, CROWD, timeAgo, LIVE_FRESH_MS,
+  attachStrength, wirePasswordToggles, friendlyError, keyOf, colorFor, busIcon, setBusHeading, setBusSpeed, speedChip, speedo, createMap, glide, CROWD, timeAgo, LIVE_FRESH_MS,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
 
@@ -236,7 +236,7 @@ $('#fleet').addEventListener('click', async (e) => {
     } catch (ex) { toast(friendlyError(ex), 'bad'); }
     return;
   }
-  if (act === 'locate' && map && live[reg]) { map.flyTo([live[reg].lat, live[reg].lng], 15); $('#fleetMap').scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  if (act === 'locate' && map && live[reg]) { selectBus(reg); map.flyTo([live[reg].lat, live[reg].lng], 15); $('#fleetMap').scrollIntoView({ behavior: 'smooth', block: 'center' }); }
 });
 
 const pwFields = (label = 'Password') => `
@@ -345,11 +345,22 @@ function initFleetMap() {
   const go = () => {
     if (!window.L) return setTimeout(go, 40);
     map = createMap('fleetMap', { zoomControl: true });
+    fleetSpeedo = speedo(map.getContainer(), 'in-map');
+    L.DomEvent.disableClickPropagation(fleetSpeedo.el);
+    map.on('click', () => { selReg = null; paintSpeedo(); });
     updateFleetMap(true);
   };
   go();
 }
 let fitted = false;
+let fleetSpeedo = null, selReg = null; // bus picked on the fleet map: its speedometer shows over the map
+function selectBus(reg) { selReg = reg; paintSpeedo(); }
+function paintSpeedo() {
+  if (!fleetSpeedo) return;
+  const l = selReg && live[selReg];
+  if (!l || !isLive(selReg)) { fleetSpeedo.hide(); return; }
+  fleetSpeedo.set(l.speed, buses[selReg]?.busName || l.busName);
+}
 function updateFleetMap(forceFit = false) {
   if (!map) return;
   const pts = [];
@@ -358,7 +369,7 @@ function updateFleetMap(forceFit = false) {
     if (!b || !l || !isLive(reg)) { if (fleetMarkers[reg]) { map.removeLayer(fleetMarkers[reg]); delete fleetMarkers[reg]; } continue; }
     pts.push([l.lat, l.lng]);
     const ic = busIcon(b.busName, colorFor(b.busKey), { heading: l.heading, speed: l.speed });
-    if (!fleetMarkers[reg]) fleetMarkers[reg] = L.marker([l.lat, l.lng], { icon: ic }).addTo(map);
+    if (!fleetMarkers[reg]) { fleetMarkers[reg] = L.marker([l.lat, l.lng], { icon: ic }).addTo(map); fleetMarkers[reg].on('click', () => selectBus(reg)); }
     else {
       const mk = fleetMarkers[reg], sig = `${l.heading != null}|${b.busName}`;
       if (mk._sig !== sig) { mk.setIcon(ic); mk._h = null; }
@@ -369,6 +380,7 @@ function updateFleetMap(forceFit = false) {
     }
     fleetMarkers[reg].bindPopup(`<b>${esc(b.busName)}</b> <span class="mono">${esc(b.regNo)}</span><br>${esc(b.driverName || 'No driver')} ${speedChip(l.speed)}`);
   }
+  paintSpeedo();
   if ((forceFit || !fitted) && pts.length) { map.fitBounds(pts, { padding: [30, 30], maxZoom: 14 }); fitted = true; }
 }
 

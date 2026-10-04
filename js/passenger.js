@@ -1,7 +1,7 @@
 // IKTA Bus — Passenger (home) page: live map, route search, ETA, alerts, crowd feedback.
 import {
   $, $$, esc, boot, store, toast, icon, haversine, projectOnPath, fmtDist, fmtEta, timeAgo,
-  createMap, userMovingMap, setupRotation, upgradeMap, mapLangPicker, mapLangSelect, sheetSwipe, setSheetState, busIcon, setBusHeading, setBusSpeed, speedChip, meIcon, stopIcon, glide, colorFor, CROWD, LIVE_FRESH_MS, unlockAudio, playAlertTone,
+  createMap, userMovingMap, setupRotation, upgradeMap, mapLangPicker, mapLangSelect, sheetSwipe, setSheetState, busIcon, setBusHeading, setBusSpeed, speedChip, speedo, meIcon, stopIcon, glide, colorFor, CROWD, LIVE_FRESH_MS, unlockAudio, playAlertTone,
   friendlyError, debounce,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
@@ -34,6 +34,8 @@ let sel = { from: { type: 'gps' }, to: null };
 let matches = [];               // active route matches for the current search
 let busFilter = null;           // busKey chip filter
 let focusReg = null;            // bus being followed
+let selReg = null;              // bus whose speedometer is shown (stays while the map is dragged)
+const busSpeedo = speedo(document.body, 'beside-fabs');
 const markers = {};             // reg → Leaflet marker
 const lastAlong = {};           // reg → {along, key} for direction inference
 const alerted = new Set();
@@ -443,7 +445,7 @@ function drawBusRoute(fit = busFitPending) {
   }
 }
 function pickBus(key) {
-  busFilter = key || null; focusReg = null;
+  busFilter = key || null; focusReg = null; selReg = null;
   if (sel.to) return runSearch(true);
   const p = new URLSearchParams(busFilter ? { bus: busFilter } : {});
   history.replaceState(null, '', busFilter ? `?${p}` : location.pathname);
@@ -482,10 +484,16 @@ function renderMarkers() {
     mk.bindPopup(`<b>🚌 ${esc(b.busName)}</b> ${speedChip(lv.speed)}<br><span class="mono">${esc(b.regNo || reg)}</span><br>${userPos ? `${fmtDist(haversine(userPos, lv))} from you · ` : ''}${timeAgo(lv.ts)}${routes[key] && busFilter !== key && !sel.to ? `<br><button class="btn btn-sm btn-primary" style="margin-top:8px" data-busroute="${esc(key)}">Show route &amp; all ${esc(b.busName)} buses</button>` : ''}`);
   }
   for (const reg of Object.keys(markers)) if (!active.has(reg)) { busLayer.removeLayer(markers[reg]); delete markers[reg]; }
+  paintSpeedo();
   if (focusReg && live[focusReg] && markers[focusReg] && !userMovingMap(map)) map.panTo([live[focusReg].lat, live[focusReg].lng], { animate: true });
 }
+function paintSpeedo() {
+  const lv = selReg && live[selReg];
+  if (!lv || !fresh(lv)) { busSpeedo.hide(); return; }
+  busSpeedo.set(lv.speed, (buses[selReg] || lv).busName);
+}
 function focusBus(reg) {
-  focusReg = reg;
+  focusReg = reg; selReg = reg; paintSpeedo();
   const lv = live[reg];
   if (lv) map.flyTo([lv.lat, lv.lng], Math.max(map.getZoom(), 15), { duration: 0.7 });
   markers[reg]?.openPopup();
@@ -506,6 +514,7 @@ function renderStops() {
   }
 }
 map.on('zoomend moveend', debounce(renderStops, 150));
+map.on('click', () => { selReg = null; paintSpeedo(); });
 map.on('popupopen', (e) => {
   const el = e.popup.getElement();
   el.querySelector('[data-setfrom]')?.addEventListener('click', (ev) => { sel.from = { type: 'stop', id: ev.target.dataset.setfrom }; paintInputs(); map.closePopup(); if (sel.to) runSearch(); });

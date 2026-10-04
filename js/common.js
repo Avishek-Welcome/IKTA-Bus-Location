@@ -554,6 +554,30 @@ export function speedChip(ms) {
   return `<span class="speed-chip ${cls}" title="Live speed"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 14.5a7.5 7.5 0 1 1 13 0" class="trk"/><path d="M3.5 14.5a7.5 7.5 0 1 1 13 0" class="val" pathLength="1" style="stroke-dasharray:${sweep.toFixed(2)} 1"/></svg>${cls === 'stopped' ? 'Stopped' : `<b>${k}</b> km/h`}</span>`;
 }
 // Update a bus marker's speed badge in place
+// Round speedometer over a map: the arc fills up to 80 km/h, green → amber (50) → red (65),
+// grey when stopped. Optional caption under the dial (the selected bus's name).
+const SPEEDO_MAX = 80;
+export function speedo(host, extraClass = '') {
+  const el = document.createElement('div');
+  el.className = `speedo hidden ${extraClass}`;
+  el.setAttribute('role', 'img');
+  el.innerHTML = '<svg viewBox="0 0 100 100" aria-hidden="true"><circle class="trk" cx="50" cy="50" r="42" pathLength="1"/><circle class="val" cx="50" cy="50" r="42" pathLength="1"/></svg><div class="read"><b class="num">0</b><span>km/h</span></div><div class="cap hidden"></div>';
+  host.appendChild(el);
+  return {
+    el,
+    set(ms, label) {
+      const k = kmh(ms), cls = k < 2 ? 'stopped' : k < 50 ? 'ok' : k < 65 ? 'fast' : 'over';
+      el.className = `speedo ${cls} ${extraClass}`;
+      el.querySelector('.val').style.strokeDasharray = `${Math.min(1, k / SPEEDO_MAX) * 0.75} 1`;
+      el.querySelector('.num').textContent = k;
+      const cap = el.querySelector('.cap');
+      cap.classList.toggle('hidden', !label);
+      if (label && cap.textContent !== label) cap.textContent = label;
+      el.setAttribute('aria-label', `${label ? `${label}: ` : ''}${k} km/h`);
+    },
+    hide() { el.classList.add('hidden'); },
+  };
+}
 export function setBusSpeed(marker, ms) {
   const el = marker.getElement()?.querySelector('.spd');
   if (!el) return;

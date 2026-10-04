@@ -1,6 +1,6 @@
 // IKTA Bus — Driver console: sign in, live GPS broadcast, route & bus-stop editor.
 import {
-  $, $$, esc, boot, store, toast, icon, haversine, createMap, userMovingMap, blockPageZoom, setupRotation, mapLangPicker, sheetSwipe, busIcon, stopIcon, glide, kmh, colorFor, CROWD, timeAgo,
+  $, $$, esc, boot, store, toast, icon, haversine, createMap, userMovingMap, blockPageZoom, setupRotation, mapLangPicker, sheetSwipe, busIcon, stopIcon, glide, speedo, colorFor, CROWD, timeAgo,
   idToEmail, friendlyError, setBusy, promptBox, confirmBox, wirePasswordToggles, fmtDist, debounce,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
@@ -290,7 +290,7 @@ function onFix(p) {
   if (lastFix && speed > 0.5) speed = lastFix.speed + (speed - lastFix.speed) * 0.6;
   lastFix = { lat: c.latitude, lng: c.longitude, acc: c.accuracy, speed, heading: heading ?? lastFix?.heading ?? null, t: p.timestamp };
   $('#stSpeed').textContent = Math.round(lastFix.speed * 3.6);
-  setSpeedo(lastFix.speed);
+  driverSpeedo.set(lastFix.speed);
   $('#stAcc').textContent = Math.round(c.accuracy);
   const ll = [lastFix.lat, lastFix.lng];
   if (!busMarker) {
@@ -304,15 +304,7 @@ function onFix(p) {
   }
   if (sending) maybeSend();
 }
-// Round speedometer on the map: the arc fills up to 80 km/h, green → amber → red
-const SPEEDO_MAX = 80;
-function setSpeedo(ms) {
-  const el = $('#speedo'), k = kmh(ms), cls = k < 2 ? 'stopped' : k < 50 ? 'ok' : k < 65 ? 'fast' : 'over';
-  el.classList.remove('hidden');
-  el.className = `speedo ${cls}`;
-  el.querySelector('.val').style.strokeDasharray = `${Math.min(1, k / SPEEDO_MAX) * 0.75} 1`;
-  el.querySelector('.num').textContent = k;
-}
+const driverSpeedo = speedo(document.getElementById('appView'));
 // The driver's own bus: bold arrow turned every frame by navLoop (no CSS lag)
 function myBusIcon() {
   const ic = busIcon(profile.busName, colorFor(profile.busKey), { heading: currentHeading() ?? (navHeading ?? null) });
