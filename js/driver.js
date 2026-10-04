@@ -206,12 +206,18 @@ function currentHeading() {
 }
 // The bus sits in the middle of the map's width, 60% of the way down the part of the
 // map that the panel doesn't cover.
+// Measured at most every 8 frames: reading the panel's position forces a layout, and
+// the panel only moves when the driver swipes it.
+let anchor = null, anchorAge = 0;
 function busAnchor() {
+  if (anchor && anchorAge++ < 8) return anchor;
   const sz = map.getSize(), top = map.getContainer().getBoundingClientRect().top;
   const sheetTop = $('#sheet').getBoundingClientRect().top - top;
   const visible = Math.max(sz.y * 0.35, Math.min(sz.y, sheetTop));
-  return L.point(sz.x / 2, visible * 0.6);
+  anchorAge = 0;
+  return (anchor = L.point(sz.x / 2, visible * 0.6));
 }
+let arrowEl = null, arrowH = '';
 function navLoop() {
   const target = currentHeading();
   if (target != null) {
@@ -220,8 +226,10 @@ function navLoop() {
       const want = (360 - navHeading) % 360;
       if (Math.abs(angDiff(map.getBearing(), want)) > 0.2) map.setBearing(want);
     }
-    const arrow = busMarker?.getElement()?.querySelector('.arrow');
-    arrow?.style.setProperty('--h', `${navHeading.toFixed(1)}deg`);
+    // the arrow element is replaced whenever the marker's icon is rebuilt
+    if (!arrowEl?.isConnected) { arrowEl = busMarker?.getElement()?.querySelector('.arrow') || null; arrowH = ''; }
+    const h = `${navHeading.toFixed(1)}deg`;
+    if (arrowEl && h !== arrowH) { arrowH = h; arrowEl.style.setProperty('--h', h); }
   }
   // Camera rides with the gliding bus, keeping it at its spot on the screen
   if (follow && busMarker && !userMovingMap(map) && !map._animatingZoom) {
@@ -312,7 +320,11 @@ function myBusIcon() {
   ic.options.html = ic.options.html.replace('class="bus-marker', 'class="bus-marker live me');
   return ic;
 }
-/** Throttle: send when moved ≥5 m (≤ every 1.5 s), turned ≥8° or speed changed ≥4 km/h (≤ every 0.9 s), or every 10 s (heartbeat) */
+/** Throttle: send when moved ≥5 m (≤ every 1.5 s), turned ≥8° or speed changed ≥4 km/h (≤ every 0.9 s), or every 20 s (heartbeat) */
+// The bus's name, number and driver go out once per sharing session (and again if they
+// change); each later update carries only the moving parts, so every passenger's phone
+// downloads a few dozen bytes per update instead of the whole record.
+let sentInfo = null;
 function maybeSend(force = false) {
   if (!lastFix || !sending) return;
   const now = Date.now(), heading = busHeading();
@@ -321,20 +333,24 @@ function maybeSend(force = false) {
   const turned = heading != null && (lastSentHeading == null || Math.abs(angDiff(lastSentHeading, heading)) >= 8);
   // A speed change of 4 km/h or more (including stopping) also goes out promptly
   const sped = Math.abs((lastSentSpeed ?? -9) - lastFix.speed) * 3.6 >= 4;
-  const due = (moved >= 5 && now - lastSent >= 1500) || ((turned || sped) && now - lastSent >= 900) || now - lastSent >= 10000;
+  const due = (moved >= 5 && now - lastSent >= 1500) || ((turned || sped) && now - lastSent >= 900) || now - lastSent >= 20000;
   if (!force && !due) return;
   lastSent = now; lastSentPos = { ...lastFix }; lastSentHeading = heading; lastSentSpeed = lastFix.speed;
-  api.set(`live/${profile.regKey}`, {
+  const pos = {
     lat: +lastFix.lat.toFixed(6), lng: +lastFix.lng.toFixed(6), speed: +lastFix.speed.toFixed(1),
-    heading: heading != null ? Math.round(heading) : null, acc: Math.round(lastFix.acc), ts: now, online: true, dir,
-    busName: profile.busName, busKey: profile.busKey, regNo: profile.regNo, driverUid: user.uid, driver: profile.name || profile.userId,
-  }).then(() => { sentCount++; $('#stSent').textContent = sentCount; }).catch((e) => toast(friendlyError(e), 'bad'));
+    heading: heading != null ? Math.round(heading) : null, acc: Math.round(lastFix.acc), ts: now, online: true,
+  };
+  const info = { dir, busName: profile.busName, busKey: profile.busKey, regNo: profile.regNo, driverUid: user.uid, driver: profile.name || profile.userId };
+  const sig = JSON.stringify(info), full = sig !== sentInfo;
+  (full ? api.set(`live/${profile.regKey}`, { ...pos, ...info }) : api.update(`live/${profile.regKey}`, pos))
+    .then(() => { if (full) sentInfo = sig; sentCount++; $('#stSent').textContent = sentCount; })
+    .catch((e) => { sentInfo = null; toast(friendlyError(e), 'bad'); });
 }
 async function startBroadcast() {
   startGeo();
   startCompass(); // this tap lets iOS ask for compass access (the phone's top edge is the bus's head)
   toast('📱 Keep the phone upright in its holder, top edge toward the front of the bus', '', 5000);
-  sending = true; sentCount = 0;
+  sending = true; sentCount = 0; sentInfo = null;
   $('#bcBtn').classList.add('on'); $('#bcLabel').innerHTML = 'STOP<br>SHARING';
   $('#bcStatus').textContent = 'Live! Passengers and your owner can see this bus.';
   $('#liveBadge').className = 'badge live'; $('#liveBadge').textContent = 'LIVE';

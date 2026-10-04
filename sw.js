@@ -1,5 +1,5 @@
 // IKTA Bus service worker — instant repeat loads + offline map shell.
-const VERSION = 'ikta-v18';
+const VERSION = 'ikta-v19';
 const SHELL = [
   './', 'index.html', 'driver.html', 'owner.html', 'favorites.html', 'coins.html', 'admin.html',
   'css/app.css', 'js/map-boot.js', 'js/common.js', 'js/api.js', 'js/favs.js', 'js/firebase-config.js',
@@ -20,7 +20,11 @@ self.addEventListener('activate', (e) => {
     .then(() => self.clients.claim()));
 });
 
+// Listing the whole tile cache is slow, so trim at most every 15 s rather than after every tile
+let trimAt = 0;
 async function trimTiles() {
+  if (Date.now() - trimAt < 15000) return;
+  trimAt = Date.now();
   const c = await caches.open(TILE_CACHE);
   const keys = await c.keys();
   for (let i = 0; i < keys.length - MAX_TILES; i++) await c.delete(keys[i]);

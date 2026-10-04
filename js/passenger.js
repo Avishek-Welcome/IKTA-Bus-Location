@@ -40,18 +40,27 @@ let selReg = null;              // bus picked for the speedometer (stays while t
 const busSpeedo = speedo(document.body, 'mini');
 // Small dial in the map's bottom-left corner, riding just above the swipe panel as it moves
 // (beside the panel on wide screens, where the panel is on the left).
+// It only follows the panel while the panel can be moving (a swipe, a snap animation, a
+// resize), so an idle map does no layout work every frame.
 {
-  let last = '';
-  const place = () => {
-    const r = $('#sheet').getBoundingClientRect(), side = innerWidth >= 900;
+  const sheetEl = $('#sheet'), nav = document.querySelector('.bottom-nav');
+  let last = '', until = 0, running = false;
+  const place = (t) => {
+    const r = sheetEl.getBoundingClientRect(), side = innerWidth >= 900;
     const left = side ? r.right + 14 : 14;
-    const navTop = document.querySelector('.bottom-nav')?.getBoundingClientRect().top ?? innerHeight;
+    const navTop = nav?.getBoundingClientRect().top ?? innerHeight;
     const bottom = side ? innerHeight - r.bottom : Math.min(innerHeight - Math.min(r.top, navTop) + 12, innerHeight - 220);
     const key = `${Math.round(left)}|${Math.round(bottom)}`;
-    if (key !== last) { last = key; busSpeedo.el.style.left = `${Math.round(left)}px`; busSpeedo.el.style.bottom = `${Math.round(bottom)}px`; }
-    requestAnimationFrame(place);
+    if (key !== last) { last = key; until = Math.max(until, t + 150); busSpeedo.el.style.left = `${Math.round(left)}px`; busSpeedo.el.style.bottom = `${Math.round(bottom)}px`; }
+    if (t < until) requestAnimationFrame(place); else running = false;
   };
-  requestAnimationFrame(place);
+  // follow for a little longer than the panel's .35s snap animation
+  const kick = () => { until = Math.max(until, performance.now() + 500); if (!running) { running = true; requestAnimationFrame(place); } };
+  ['touchstart', 'touchmove', 'touchend', 'transitionrun', 'transitionend', 'sheetstate'].forEach((ev) => sheetEl.addEventListener(ev, kick, { passive: true }));
+  nav?.addEventListener('transitionrun', kick); nav?.addEventListener('transitionend', kick);
+  addEventListener('resize', kick);
+  if ('ResizeObserver' in window) new ResizeObserver(kick).observe(sheetEl);
+  kick();
 }
 busSpeedo.empty();
 const markers = {};             // reg → Leaflet marker
@@ -82,7 +91,7 @@ sheet.addEventListener('sheetstate', (e) => {
   const away = e.detail === 'hidden';
   sheetFab.classList.toggle('show', away);
   document.body.classList.toggle('sheet-away', away);
-  if (!away) resetIdle();
+  if (!away) { resetIdle(); scheduleRender(); }
 });
 sheetFab.addEventListener('click', () => sheetState('half'));
 resetIdle();
@@ -381,6 +390,12 @@ function towardsYou(reg, lv, key) {
 
 // ---------- Rendering ----------
 const fresh = (lv) => lv && lv.online !== false && Date.now() - (lv.ts || 0) < LIVE_FRESH_MS;
+// Panel HTML is only rewritten when it changed, and not at all while the panel is tucked
+// away (it is rebuilt as soon as it comes back).
+const setHTML = (el, html) => {
+  if (sheet.classList.contains('away')) { el._html = null; return; }
+  if (el._html !== html) { el._html = html; el.innerHTML = html; }
+};
 let renderQueued = false;
 function scheduleRender() { if (!renderQueued) { renderQueued = true; requestAnimationFrame(() => { renderQueued = false; renderAll(); }); } }
 
@@ -444,9 +459,9 @@ function renderAll() {
   if (sel.to) {
     const toName = stops[sel.to]?.name || 'destination';
     if (!matches.length) {
-      $('#summary').innerHTML = `<span>No route found to <strong>${esc(toName)}</strong></span>`;
-      $('#busChips').innerHTML = '';
-      list.innerHTML = `<div class="empty"><span class="big">🧭</span>No bus route in our database connects ${sel.from.type === 'gps' ? 'your location' : esc(stops[sel.from.id]?.name)} with ${esc(toName)}.<br><span class="small">Try a nearby stop as source.</span></div>`;
+      setHTML($('#summary'), `<span>No route found to <strong>${esc(toName)}</strong></span>`);
+      setHTML($('#busChips'), '');
+      setHTML(list, `<div class="empty"><span class="big">🧭</span>No bus route in our database connects ${sel.from.type === 'gps' ? 'your location' : esc(stops[sel.from.id]?.name)} with ${esc(toName)}.<br><span class="small">Try a nearby stop as source.</span></div>`);
       return;
     }
     // chips: every bus name on matched routes
@@ -464,21 +479,21 @@ function renderAll() {
     }
     const counts = {};
     results.forEach((r) => { if (!r.ev.passed) counts[r.m.key] = (counts[r.m.key] || 0) + 1; });
-    $('#busChips').innerHTML = `<button class="chip ${!busFilter ? 'active' : ''}" data-chip="">All buses</button>` +
-      names.map(([k, n]) => `<button class="chip ${busFilter === k ? 'active' : ''}" data-chip="${esc(k)}" style="${busFilter === k ? '' : `border-color:${colorFor(k)}55`}">🚌 ${esc(n)}${counts[k] ? ` · ${counts[k]}` : ''}</button>`).join('');
+    setHTML($('#busChips'), `<button class="chip ${!busFilter ? 'active' : ''}" data-chip="">All buses</button>` +
+      names.map(([k, n]) => `<button class="chip ${busFilter === k ? 'active' : ''}" data-chip="${esc(k)}" style="${busFilter === k ? '' : `border-color:${colorFor(k)}55`}">🚌 ${esc(n)}${counts[k] ? ` · ${counts[k]}` : ''}</button>`).join(''));
     const shown = results.filter((r) => !busFilter || r.m.key === busFilter);
     shown.sort((a, b) => (a.ev.passed - b.ev.passed) || (a.ev.eta ?? 1e9) - (b.ev.eta ?? 1e9));
     const incoming = shown.filter((r) => !r.ev.passed);
     const m0 = matches.find((m) => !busFilter || m.key === busFilter) || matches[0];
     const boardName = stops[m0.stopId]?.name;
-    $('#summary').innerHTML = `<span><strong>${incoming.length}</strong> incoming bus${incoming.length === 1 ? '' : 'es'} · board at <strong>${esc(boardName)}</strong>${m0.walk ? ` <span class="muted">(${fmtDist(m0.walk)} walk)</span>` : ''} · ${m0.path.road ? '' : '≈ '}${fmtDist(m0.rideM)}${m0.path.road ? ' by road' : ''}</span>`;
+    setHTML($('#summary'), `<span><strong>${incoming.length}</strong> incoming bus${incoming.length === 1 ? '' : 'es'} · board at <strong>${esc(boardName)}</strong>${m0.walk ? ` <span class="muted">(${fmtDist(m0.walk)} walk)</span>` : ''} · ${m0.path.road ? '' : '≈ '}${fmtDist(m0.rideM)}${m0.path.road ? ' by road' : ''}</span>`);
     // 10-minute alert (only for incoming buses; never once a bus has passed)
     for (const r of incoming) {
       if (r.ev.eta <= ALERT_SEC && !alerted.has(r.reg)) { alerted.add(r.reg); fireAlert(r.b, { ...r.ev, reg: r.reg }); }
     }
-    list.innerHTML = shown.length
+    setHTML(list, shown.length
       ? shown.map((r, i) => busCard(r.b, r.reg, r.ev, i === 0 && !r.ev.passed ? 'best' : '')).join('')
-      : `<div class="empty"><span class="big">🚌</span>No ${busFilter ? esc(routes[busFilter]?.busName) + ' ' : ''}bus is live on this route right now.<br><span class="small">Buses appear here as soon as their driver starts sharing location.</span></div>`;
+      : `<div class="empty"><span class="big">🚌</span>No ${busFilter ? esc(routes[busFilter]?.busName) + ' ' : ''}bus is live on this route right now.<br><span class="small">Buses appear here as soon as their driver starts sharing location.</span></div>`);
     return;
   }
 
@@ -494,14 +509,14 @@ function renderAll() {
     const line = bp && bp.ids.length >= 2
       ? `<br><span class="small">${esc(stops[bp.ids[0]].name)} → ${esc(stops[bp.ids.at(-1)].name)} · <b>${bp.road ? '' : '≈ '}${bp.km.toFixed(1)} km${bp.road ? ' by road' : ''}</b> · ${bp.ids.length} stops</span>`
       : '<br><span class="small">This bus has no saved route yet.</span>';
-    $('#nearHead').innerHTML = `<span>Bus <strong>${esc(name)}</strong> · <strong>${near.length}</strong> running now <a href="#" data-chip="">show all buses</a>${line}</span>`;
+    setHTML($('#nearHead'), `<span>Bus <strong>${esc(name)}</strong> · <strong>${near.length}</strong> running now <a href="#" data-chip="">show all buses</a>${line}</span>`);
   } else {
     $('#sheetFabCount').textContent = near.length; $('#sheetFabCount').classList.toggle('hidden', !near.length);
-    $('#nearHead').innerHTML = `<span><strong>${near.length}</strong> live bus${near.length === 1 ? '' : 'es'} ${userPos ? 'near you' : 'on the map'}${Object.keys(routes).length ? ' · <span class="small">pick a bus number to see its route</span>' : ''}</span>`;
+    setHTML($('#nearHead'), `<span><strong>${near.length}</strong> live bus${near.length === 1 ? '' : 'es'} ${userPos ? 'near you' : 'on the map'}${Object.keys(routes).length ? ' · <span class="small">pick a bus number to see its route</span>' : ''}</span>`);
   }
-  list.innerHTML = near.length ? near.map((x) => busCard(x.b, x.reg, null)).join('')
+  setHTML(list, near.length ? near.map((x) => busCard(x.b, x.reg, null)).join('')
     : busFilter ? `<div class="empty"><span class="big">🚌</span>No ${esc(routes[busFilter]?.busName || '')} bus is sharing its location right now.<br><span class="small">Buses appear on the route as soon as their driver starts sharing.</span></div>`
-      : '<div class="empty"><span class="big">🛰️</span>No buses are sharing location right now.<br><span class="small">Enter your destination to see routes and bus numbers.</span></div>';
+      : '<div class="empty"><span class="big">🛰️</span>No buses are sharing location right now.<br><span class="small">Enter your destination to see routes and bus numbers.</span></div>');
 }
 // Bus-number chips (shown when there is no destination search)
 let chipSig = null;
@@ -559,22 +574,23 @@ function renderMarkers() {
       dim = !m || (busFilter && key !== busFilter) || (lastAlong[reg]?.key === key && lastAlong[reg].dir !== m.dir);
     } else if (busFilter) dim = key !== busFilter;
     active.add(reg);
-    const ic = busIcon(b.busName || reg, colorFor(key || b.busName), { dim, heading: lv.heading, speed: lv.speed });
+    const ic = () => busIcon(b.busName || reg, colorFor(key || b.busName), { dim, heading: lv.heading, speed: lv.speed });
     let mk = markers[reg];
     if (!mk) {
-      mk = markers[reg] = L.marker([lv.lat, lv.lng], { icon: ic, zIndexOffset: 800 }).addTo(busLayer);
+      mk = markers[reg] = L.marker([lv.lat, lv.lng], { icon: ic(), zIndexOffset: 800 }).addTo(busLayer);
       mk._sig = `${dim}|${lv.heading != null}|${b.busName}`;
       mk.on('click', () => focusBus(reg));
     } else {
       // Rebuild the icon only when its look changes; direction changes just turn the arrow
       const sig = `${dim}|${lv.heading != null}|${b.busName}`;
-      if (mk._sig !== sig) { mk.setIcon(ic); mk._h = null; }
+      if (mk._sig !== sig) { mk.setIcon(ic()); mk._h = null; }
       mk._sig = sig;
       setBusHeading(mk, lv.heading);
       setBusSpeed(mk, lv.speed);
       glide(mk, { lat: lv.lat, lng: lv.lng });
     }
-    mk.bindPopup(`<b>🚌 ${esc(b.busName)}</b> ${speedChip(lv.speed)}<br><span class="mono">${esc(b.regNo || reg)}</span><br>${userPos ? `${fmtDist(haversine(userPos, lv))} from you · ` : ''}${timeAgo(lv.ts)}${routes[key] && busFilter !== key && !sel.to ? `<br><button class="btn btn-sm btn-primary" style="margin-top:8px" data-busroute="${esc(key)}">Show route &amp; all ${esc(b.busName)} buses</button>` : ''}`);
+    const pop = `<b>🚌 ${esc(b.busName)}</b> ${speedChip(lv.speed)}<br><span class="mono">${esc(b.regNo || reg)}</span><br>${userPos ? `${fmtDist(haversine(userPos, lv))} from you · ` : ''}${timeAgo(lv.ts)}${routes[key] && busFilter !== key && !sel.to ? `<br><button class="btn btn-sm btn-primary" style="margin-top:8px" data-busroute="${esc(key)}">Show route &amp; all ${esc(b.busName)} buses</button>` : ''}`;
+    if (mk._pop !== pop) { mk._pop = pop; mk.bindPopup(pop); }
   }
   for (const reg of Object.keys(markers)) if (!active.has(reg)) { busLayer.removeLayer(markers[reg]); delete markers[reg]; }
   paintSpeedo();

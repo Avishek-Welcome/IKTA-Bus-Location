@@ -24,7 +24,7 @@ A mobile-first web app (PWA) for live bus tracking. It runs in any modern browse
 
 **Driver**
 - Signs in with credentials from the owner. **"Save user ID & password"** allows one-tap sign-in later.
-- One button starts or stops GPS broadcasting. Updates are sent every 1.5 s while moving and every 10 s while standing still. A screen wake lock keeps the phone awake. The bus is shown as offline automatically if the connection drops.
+- One button starts or stops GPS broadcasting. Updates are sent every 1.5 s while moving and every 20 s while standing still (only the position, speed and direction after the first update). A screen wake lock keeps the phone awake. The bus is shown as offline automatically if the connection drops.
 - A direction toggle (towards destination or towards source) lets passengers' ETAs skip buses going the other way.
 - **Route & stops editor**: add a stop at your current GPS position, by tapping the map, or from existing stops. Stops are auto-arranged by distance from the source, and you can reorder them or change the source and destination. One route is shared by every bus with the same name.
 - **Place hints**: typing a place or bus stop name shows saved stops plus OpenStreetMap places with their road, town, district and state ([Photon](https://photon.komoot.io), free, no key; fair use only, no bulk requests).
