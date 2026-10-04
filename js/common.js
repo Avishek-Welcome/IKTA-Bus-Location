@@ -511,14 +511,21 @@ export function upgradeMap(map, raster = map._iktaTiles) {
   }).catch(() => { /* keep raster map */ });
   if (document.readyState === 'complete') setTimeout(go, 0); else addEventListener('load', () => setTimeout(go, 0), { once: true });
 }
+// Language pickers: a <select> anywhere (map button or panel); all stay in sync.
+// The choice is saved on this phone only, so each passenger keeps their own.
+export function mapLangSelect(sel, onShow) {
+  if (!sel) return;
+  sel.innerHTML = MAP_LANGS.map(([c, n]) => `<option value="${c}">${n}</option>`).join('');
+  const show = (c) => { sel.value = c; onShow?.(c); };
+  show(getMapLang());
+  langListeners.add(show);
+  sel.addEventListener('change', () => { setMapLang(sel.value); toast(`Map names: ${sel.selectedOptions[0].textContent}`); });
+}
 // A map button with a native language picker inside it.
 export function mapLangPicker(btn) {
   if (!btn) return;
-  const sel = btn.querySelector('select'), glyph = btn.querySelector('.glyph');
-  sel.innerHTML = MAP_LANGS.map(([c, n]) => `<option value="${c}">${n}</option>`).join('');
-  const show = (c) => { sel.value = c; glyph.textContent = (MAP_LANGS.find(([x]) => x === c) || MAP_LANGS[0])[2]; };
-  show(getMapLang());
-  sel.addEventListener('change', () => { setMapLang(sel.value); show(sel.value); toast(`Map names: ${sel.selectedOptions[0].textContent}`); });
+  const glyph = btn.querySelector('.glyph');
+  mapLangSelect(btn.querySelector('select'), (c) => { glyph.textContent = (MAP_LANGS.find(([x]) => x === c) || MAP_LANGS[0])[2]; });
 }
 
 export function createMap(el, { view, zoomControl = false } = {}) {

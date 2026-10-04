@@ -1,7 +1,7 @@
 // IKTA Bus — Passenger (home) page: live map, route search, ETA, alerts, crowd feedback.
 import {
   $, $$, esc, boot, store, toast, icon, haversine, buildPath, projectOnPath, fmtDist, fmtEta, timeAgo,
-  createMap, userMovingMap, setupRotation, upgradeMap, mapLangPicker, sheetSwipe, setSheetState, busIcon, meIcon, stopIcon, glide, colorFor, CROWD, LIVE_FRESH_MS, unlockAudio, playAlertTone,
+  createMap, userMovingMap, setupRotation, upgradeMap, mapLangPicker, mapLangSelect, sheetSwipe, setSheetState, busIcon, meIcon, stopIcon, glide, colorFor, CROWD, LIVE_FRESH_MS, unlockAudio, playAlertTone,
   friendlyError, debounce,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
@@ -16,6 +16,7 @@ L.control.zoom({ position: 'bottomright' }).addTo(map);
 setupRotation(map, $('#compassBtn'));
 upgradeMap(map);
 mapLangPicker($('#langBtn'));
+mapLangSelect($('#langSelect'));
 const stopLayer = L.layerGroup().addTo(map);
 const routeLayer = L.layerGroup().addTo(map);
 const busLayer = L.layerGroup().addTo(map);
