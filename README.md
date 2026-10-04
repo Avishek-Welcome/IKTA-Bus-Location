@@ -45,7 +45,7 @@ A mobile-first web app (PWA) for live bus tracking. It runs in any modern browse
 
 ## Try it now (demo mode)
 
-While `js/firebase-config.js` still contains the `YOUR_…` placeholders, the app runs in **demo mode**:
+When `apiKey` in `js/firebase-config.js` is set to `'YOUR_API_KEY'`, the app runs in **demo mode**:
 - All data is stored in the browser (`localStorage`) and synced across tabs.
 - Simulated buses move along three North Kolkata routes (DN 12, DN 8, L38).
 
@@ -66,7 +66,9 @@ Open `driver.html` in one tab and `index.html` in another to watch your own broa
 
 ## Going live with Firebase
 
-1. Create a project at <https://console.firebase.google.com> and add a **Web app**. Paste its config into `js/firebase-config.js`.
+1. ✅ Done: `js/firebase-config.js` holds the config for the **ikta-bus** project and loads Firebase JS SDK **12.19.0**. Analytics starts only when the browser is idle, so it does not slow down the map.
+   - Check `databaseURL` there. It is set to the us-central1 default (`https://ikta-bus-default-rtdb.firebaseio.com`). If your Realtime Database is in another region, copy the URL shown at the top of *Realtime Database → Data*.
+   - To go back to demo mode, set `apiKey` to `'YOUR_API_KEY'`.
 2. **Authentication → Sign-in method**: enable **Email/Password** and **Anonymous**.
    - User IDs are mapped internally to `userid@owner.ikta-bus.app` / `userid@driver.ikta-bus.app`, so users never need a real email address.
 3. **Realtime Database**: create a database, then publish `database.rules.json`, either through the console's Rules tab or with `firebase deploy --only database`.

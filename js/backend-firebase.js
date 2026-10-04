@@ -2,6 +2,21 @@
 // Realtime Database is used for its persistent WebSocket: a driver's GPS write
 // reaches every subscribed passenger typically within ~100–300 ms.
 
+// Google Analytics is loaded once, when the browser is idle, so it never
+// competes with the map, tiles or live bus data for bandwidth.
+let analyticsStarted = false;
+function startAnalytics(app, config, base) {
+  if (analyticsStarted || !config.measurementId) return;
+  analyticsStarted = true;
+  const run = async () => {
+    try {
+      const { getAnalytics, isSupported } = await import(`${base}/firebase-analytics.js`);
+      if (await isSupported()) getAnalytics(app); // records page_view automatically
+    } catch (e) { console.warn('analytics disabled', e.message); }
+  };
+  if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 8000 }); else setTimeout(run, 4000);
+}
+
 export async function create(config, role, ver) {
   const base = `https://www.gstatic.com/firebasejs/${ver}`;
   const [appMod, authMod, dbMod] = await Promise.all([
@@ -21,6 +36,7 @@ export async function create(config, role, ver) {
   const app = getApps().find((a) => a.name === role) || initializeApp(config, role);
   const auth = getAuth(app);
   const db = getDatabase(app);
+  startAnalytics(app, config, base);
   const r = (p) => (p ? ref(db, p) : ref(db));
 
   // A throw-away app with in-memory auth lets an owner create / update driver
