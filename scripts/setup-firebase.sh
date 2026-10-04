@@ -2,7 +2,7 @@
 # =====================================================================
 #  IKTA Bus — one-command Firebase setup (run in Google Cloud Shell)
 #
-#    bash <(curl -sL https://raw.githubusercontent.com/Avishek-Welcome/IKTA-Bus-Location/claude/ikta-bus-web-app-id8b7f/scripts/setup-firebase.sh)
+#    bash <(curl -sL https://raw.githubusercontent.com/Avishek-Welcome/IKTA-Bus-Location/main/scripts/setup-firebase.sh)
 #
 #  It will:
 #   1. download the app            5. publish database.rules.json
@@ -15,7 +15,7 @@
 set -uo pipefail
 
 PROJECT="ikta-bus"
-BRANCH="claude/ikta-bus-web-app-id8b7f"
+BRANCH="${BRANCH:-main}"
 REPO="https://github.com/Avishek-Welcome/IKTA-Bus-Location.git"
 ADMIN_EMAIL="admin@admin.ikta-bus.app"
 DIR="$HOME/IKTA-Bus-Location"
