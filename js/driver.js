@@ -129,39 +129,60 @@ function initMap() {
   });
 }
 // ---------- Heading-up navigation ----------
-// The map turns so the bus's direction of travel points to the top of the phone.
-// Direction = GPS course while moving (≥ 5 km/h); when slow or stopped, the phone's
-// compass (assumes the phone faces forward in its holder); smoothed so it doesn't jitter.
+// The bus's head is the top edge of the driver's phone: mount it upright in portrait
+// (screen facing the driver, top edge toward the windscreen) or lying flat with the top
+// edge pointing forward. The map turns so that direction is at the top of the screen, and
+// the same direction is sent to passengers and owners. GPS course is only the fallback
+// when the phone has no compass, or when the phone clearly isn't pointing along the road.
 let gpsCourse = null, gpsCourseAt = 0, compassHeading = null, compassAt = 0, navHeading = null, compassOn = false;
 const angDiff = (a, b) => ((b - a + 540) % 360) - 180;
 const norm = (a) => ((a % 360) + 360) % 360;
-// Compass calibration: while the bus drives fast and straight, learn the offset between the
-// phone's compass and the GPS course. Once it is steady, compass + offset gives the bus's
-// direction instantly (GPS course lags a few seconds on turns), whichever way the phone is mounted.
-const calib = [];
-let compassOffset = null;
-function learnOffset(course, speed) {
-  if (compassHeading == null || Date.now() - compassAt > 1500 || speed < 4) return;
-  calib.push(angDiff(compassHeading, course));
-  if (calib.length > 20) calib.shift();
-  if (calib.length < 6) return;
-  const rad = Math.PI / 180;
-  const mean = Math.atan2(calib.reduce((s, d) => s + Math.sin(d * rad), 0), calib.reduce((s, d) => s + Math.cos(d * rad), 0)) / rad;
-  const spread = Math.max(...calib.map((d) => Math.abs(angDiff(mean, d))));
-  compassOffset = spread < 25 ? mean : null; // phone loose in a hand or pocket → don't trust it
+const rad = Math.PI / 180;
+// Direction the phone's top edge points, for any tilt from flat to upright: the top edge
+// and the back of the phone are both projected onto the ground and added, so the result
+// stays steady when the phone stands vertically (top edge to the sky, back to the road).
+function phoneHeading(alpha, beta, gamma) {
+  const sA = Math.sin(alpha * rad), cA = Math.cos(alpha * rad), sB = Math.sin(beta * rad), cB = Math.cos(beta * rad);
+  const sG = Math.sin(gamma * rad), cG = Math.cos(gamma * rad);
+  const east = -cB * sA - (cG * sA * sB + cA * sG), north = cA * cB + (cA * cG * sB - sA * sG);
+  if (Math.hypot(east, north) < 0.2) return null; // lying face down or rolled on its side
+  return norm(Math.atan2(east, north) / rad);
 }
-const calibratedCompass = () => (compassOffset != null && compassHeading != null && Date.now() - compassAt < 1500 ? norm(compassHeading + compassOffset) : null);
-// Direction sent to passengers/owners: calibrated compass while moving, else GPS course.
-// Stopped buses keep their last direction (the phone may be picked up while parked).
+// Safety check while driving straight: if the phone's top edge keeps pointing well away
+// from the GPS course (held in a hand, lying sideways), use GPS until it lines up again.
+const check = [];
+let phoneAligned = true;
+function checkMount(course, speed) {
+  if (compassHeading == null || Date.now() - compassAt > 1500 || speed < 4) return;
+  check.push(angDiff(compassHeading, course));
+  if (check.length > 12) check.shift();
+  if (check.length < 6) return;
+  const off = check.filter((d) => Math.abs(d) > 50).length;
+  phoneAligned = off < check.length / 2;
+}
+const phoneCompass = () => (phoneAligned && compassHeading != null && Date.now() - compassAt < 1500 ? compassHeading : null);
+// Direction sent to passengers/owners: the phone's top edge, else GPS course.
 function busHeading() {
-  if ((lastFix?.speed || 0) >= 1 && calibratedCompass() != null) return calibratedCompass();
-  return lastFix?.heading ?? null;
+  return phoneCompass() ?? lastFix?.heading ?? null;
 }
 function startCompass() {
   if (compassOn) return;
+  let iosOffset = null; // iOS gives alpha relative to an arbitrary start; this turns it into true north
   const onOrient = (e) => {
-    let h = e.webkitCompassHeading ?? (e.absolute && e.alpha != null ? 360 - e.alpha : null);
-    if (h == null || isNaN(h)) return;
+    if (e.alpha == null || e.beta == null || e.gamma == null) return;
+    let alpha = null;
+    if (e.webkitCompassHeading != null && !isNaN(e.webkitCompassHeading)) {
+      // webkitCompassHeading is exact while the phone is not standing up; learn the offset then
+      if (Math.abs(e.beta) < 55 && Math.abs(e.gamma) < 40) {
+        const o = norm(360 - e.webkitCompassHeading - e.alpha);
+        iosOffset = iosOffset == null ? o : norm(iosOffset + angDiff(iosOffset, o) * 0.2);
+      }
+      alpha = iosOffset != null ? norm(e.alpha + iosOffset) : null;
+      if (alpha == null) { compassHeading = norm(e.webkitCompassHeading); compassAt = Date.now(); return; }
+    } else if (e.absolute) alpha = e.alpha;
+    if (alpha == null) return;
+    let h = phoneHeading(alpha, e.beta, e.gamma);
+    if (h == null) return;
     h = norm(h + (screen.orientation?.angle || 0));
     // light smoothing: compass readings jitter a few degrees
     compassHeading = compassHeading == null ? h : norm(compassHeading + angDiff(compassHeading, h) * 0.35);
@@ -178,10 +199,10 @@ function startCompass() {
   } else listen();
 }
 function currentHeading() {
-  const cc = calibratedCompass();
-  if (cc != null) return cc;
+  const pc = phoneCompass();
+  if (pc != null) return pc;
   if (gpsCourse != null && Date.now() - gpsCourseAt < 6000) return gpsCourse;
-  return compassHeading ?? gpsCourse;
+  return gpsCourse ?? compassHeading;
 }
 function navLoop() {
   const target = currentHeading();
@@ -255,7 +276,7 @@ function onFix(p) {
     heading = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
   }
   // GPS course is noise below walking pace: keep the last good one while slow or stopped
-  if (heading != null && !isNaN(heading) && (speed || 0) >= 1.4) { gpsCourse = heading; gpsCourseAt = Date.now(); learnOffset(heading, speed); } else heading = null;
+  if (heading != null && !isNaN(heading) && (speed || 0) >= 1.4) { gpsCourse = heading; gpsCourseAt = Date.now(); checkMount(heading, speed); } else heading = null;
   // Smooth GPS speed a little (single fixes jump by several km/h) but let a stop show quickly
   speed = Math.max(0, speed || 0);
   if (lastFix && speed > 0.5) speed = lastFix.speed + (speed - lastFix.speed) * 0.6;
@@ -301,7 +322,8 @@ function maybeSend(force = false) {
 }
 async function startBroadcast() {
   startGeo();
-  startCompass(); // this tap lets iOS ask for compass access (used for quicker direction)
+  startCompass(); // this tap lets iOS ask for compass access (the phone's top edge is the bus's head)
+  toast('📱 Keep the phone upright in its holder, top edge toward the front of the bus', '', 5000);
   sending = true; sentCount = 0;
   $('#bcBtn').classList.add('on'); $('#bcLabel').innerHTML = 'STOP<br>SHARING';
   $('#bcStatus').textContent = 'Live! Passengers and your owner can see this bus.';
