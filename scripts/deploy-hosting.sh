@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # IKTA Bus — deploy (or re-deploy) the website to Firebase Hosting from Cloud Shell.
-#   bash <(curl -sL https://raw.githubusercontent.com/Avishek-Welcome/IKTA-Bus-Location/claude/ikta-bus-web-app-id8b7f/scripts/deploy-hosting.sh)
+#   bash <(curl -sL https://raw.githubusercontent.com/Avishek-Welcome/IKTA-Bus-Location/main/scripts/deploy-hosting.sh)
 set -uo pipefail
 PROJECT="ikta-bus"
-BRANCH="claude/ikta-bus-web-app-id8b7f"
+BRANCH="${BRANCH:-main}"
 DIR="$HOME/IKTA-Bus-Location"
 
 ok()   { printf '\033[1;32m  ✔ %s\033[0m\n' "$*"; }
