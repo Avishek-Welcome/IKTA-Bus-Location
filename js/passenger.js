@@ -35,7 +35,21 @@ let matches = [];               // active route matches for the current search
 let busFilter = null;           // busKey chip filter
 let focusReg = null;            // bus being followed
 let selReg = null;              // bus picked for the speedometer (stays while the map is dragged)
-const busSpeedo = speedo(document.body, 'beside-fabs');
+const busSpeedo = speedo(document.body, 'mini');
+// Small dial in the map's bottom-left corner, riding just above the swipe panel as it moves
+// (beside the panel on wide screens, where the panel is on the left).
+{
+  let last = '';
+  const place = () => {
+    const r = $('#sheet').getBoundingClientRect(), side = innerWidth >= 900;
+    const left = side ? r.right + 14 : 14;
+    const bottom = side ? innerHeight - r.bottom : Math.min(innerHeight - r.top + 12, innerHeight - 220);
+    const key = `${Math.round(left)}|${Math.round(bottom)}`;
+    if (key !== last) { last = key; busSpeedo.el.style.left = `${Math.round(left)}px`; busSpeedo.el.style.bottom = `${Math.round(bottom)}px`; }
+    requestAnimationFrame(place);
+  };
+  requestAnimationFrame(place);
+}
 busSpeedo.empty();
 const markers = {};             // reg → Leaflet marker
 const lastAlong = {};           // reg → {along, key} for direction inference
