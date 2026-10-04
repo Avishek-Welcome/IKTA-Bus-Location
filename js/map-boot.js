@@ -9,6 +9,7 @@
   v = v || { lat: 22.6757, lng: 88.4512, zoom: 12 };
   // Touch tuning: keep in sync with MAP_OPTS / TILE_OPTS in js/common.js
   var map = L.map(el, {
+    rotate: true, touchRotate: true, rotateControl: false, bearing: 0,
     zoomControl: false, preferCanvas: true, zoomSnap: 0.25, zoomDelta: 1, bounceAtZoomLimits: false,
     inertia: true, inertiaDeceleration: 2200, inertiaMaxSpeed: 2000, easeLinearity: 0.2,
     tapTolerance: 20, wheelPxPerZoomLevel: 90

@@ -1,6 +1,6 @@
 // IKTA Bus — Driver console: sign in, live GPS broadcast, route & bus-stop editor.
 import {
-  $, $$, esc, boot, store, toast, icon, haversine, createMap, userMovingMap, blockPageZoom, busIcon, stopIcon, glide, colorFor, CROWD, timeAgo,
+  $, $$, esc, boot, store, toast, icon, haversine, createMap, userMovingMap, blockPageZoom, setupRotation, sheetSwipe, busIcon, stopIcon, glide, colorFor, CROWD, timeAgo,
   idToEmail, friendlyError, setBusy, promptBox, confirmBox, wirePasswordToggles, fmtDist,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
@@ -108,6 +108,7 @@ function initMap() {
   otherStopLayer = L.layerGroup().addTo(map);
   routeLayer = L.layerGroup().addTo(map);
   blockPageZoom();
+  setupRotation(map, $('#compassBtn'));
   // Dragging the map stops auto-follow until the center button is tapped
   map.on('dragstart', () => { follow = false; });
   setTimeout(() => map.invalidateSize(), 50);
@@ -124,10 +125,7 @@ $('#centerBtn').addEventListener('click', () => { follow = true; if (lastFix) ma
 
 // ---------- Sheet + tabs ----------
 const sheet = $('#sheet');
-$('#sheetHandle').addEventListener('click', () => {
-  const st = sheet.classList.contains('collapsed') ? 'half' : sheet.classList.contains('half') ? 'full' : 'collapsed';
-  sheet.classList.toggle('collapsed', st === 'collapsed'); sheet.classList.toggle('half', st === 'half');
-});
+sheetSwipe(sheet);
 sheet.style.setProperty('--peek', '190px');
 $$('[data-tab]').forEach((b) => b.addEventListener('click', () => {
   $$('[data-tab]').forEach((x) => x.classList.toggle('active', x === b));

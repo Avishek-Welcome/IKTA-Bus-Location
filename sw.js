@@ -1,5 +1,5 @@
 // IKTA Bus service worker — instant repeat loads + offline map shell.
-const VERSION = 'ikta-v5';
+const VERSION = 'ikta-v6';
 const SHELL = [
   './', 'index.html', 'driver.html', 'owner.html', 'favorites.html', 'coins.html', 'admin.html',
   'css/app.css', 'js/map-boot.js', 'js/common.js', 'js/api.js', 'js/favs.js', 'js/firebase-config.js',
@@ -43,7 +43,7 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   // App shell + CDN libraries (Leaflet, Firebase SDK, fonts): stale-while-revalidate
-  if (url.origin === location.origin || /cdnjs\.cloudflare\.com|gstatic\.com|fonts\.googleapis\.com/.test(url.host)) {
+  if (url.origin === location.origin || /cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net|gstatic\.com|fonts\.googleapis\.com/.test(url.host)) {
     e.respondWith(caches.open(VERSION).then(async (c) => {
       const hit = await c.match(req, { ignoreSearch: req.mode === 'navigate' });
       const net = fetch(req).then((res) => { if (res.ok || res.type === 'opaque') c.put(req, res.clone()); return res; }).catch(() => hit);

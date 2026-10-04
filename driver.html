@@ -64,6 +64,7 @@
     <div id="map" role="application" aria-label="Driver map"></div>
     <div class="fabs">
       <button class="fab" id="centerBtn" aria-label="Center on bus"><i data-icon="locate"></i></button>
+      <button class="fab compass north" id="compassBtn" aria-label="Turn map to face north" title="Face north"><i data-icon="compass"></i></button>
     </div>
     <div class="mode-banner hidden" id="tapBanner">Tap the map where the new stop is <button id="tapCancel">Cancel</button></div>
 
@@ -145,6 +146,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js" crossorigin defer></script>
   <script type="module" src="js/driver.js"></script>
 </body>
 </html>
