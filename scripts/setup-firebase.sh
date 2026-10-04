@@ -103,7 +103,12 @@ step "5/8  Publishing security rules"
 "${FB[@]}" deploy --only database && ok "Rules published" || die "Rules deploy failed"
 
 step "6/8  Deploying the website to Firebase Hosting"
-"${FB[@]}" deploy --only hosting && ok "Website live at https://$PROJECT.web.app" || warn "Hosting deploy failed (rules and data setup continue)"
+if ! "${FB[@]}" deploy --only hosting; then
+  warn "Hosting deploy failed (rules and data setup continue). Afterwards run:"
+  warn "bash <(curl -sL https://raw.githubusercontent.com/Avishek-Welcome/IKTA-Bus-Location/$BRANCH/scripts/deploy-hosting.sh)"
+else
+  ok "Website live at https://$PROJECT.web.app"
+fi
 
 # ---------------------------------------------------------------------
 step "7/8  Creating the admin account ($ADMIN_EMAIL, sign in with user ID: admin)"
