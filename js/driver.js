@@ -13,7 +13,7 @@ wirePasswordToggles();
 const SAVED_KEY = 'ikta_driver_saved';
 let api, user, profile = null, map, busMarker, accCircle;
 let stops = {}, route = null, routeIds = [], dirty = false;
-let watchId = null, wakeLock = null, sending = false, lastSent = 0, lastSentPos = null, lastSentHeading = null, sentCount = 0, heartbeat = null;
+let watchId = null, wakeLock = null, sending = false, lastSent = 0, lastSentPos = null, lastSentHeading = null, lastSentSpeed = null, sentCount = 0, heartbeat = null;
 let follow = true, headingUp = store.get('ikta_heading_up', true), lastFix = null, dir = store.get('ikta_driver_dir', 'fwd'), tapMode = false;
 const routeLayerRefs = { line: null, markers: [] };
 let otherStopLayer, routeLayer;
@@ -256,7 +256,10 @@ function onFix(p) {
   }
   // GPS course is noise below walking pace: keep the last good one while slow or stopped
   if (heading != null && !isNaN(heading) && (speed || 0) >= 1.4) { gpsCourse = heading; gpsCourseAt = Date.now(); learnOffset(heading, speed); } else heading = null;
-  lastFix = { lat: c.latitude, lng: c.longitude, acc: c.accuracy, speed: Math.max(0, speed || 0), heading: heading ?? lastFix?.heading ?? null, t: p.timestamp };
+  // Smooth GPS speed a little (single fixes jump by several km/h) but let a stop show quickly
+  speed = Math.max(0, speed || 0);
+  if (lastFix && speed > 0.5) speed = lastFix.speed + (speed - lastFix.speed) * 0.6;
+  lastFix = { lat: c.latitude, lng: c.longitude, acc: c.accuracy, speed, heading: heading ?? lastFix?.heading ?? null, t: p.timestamp };
   $('#stSpeed').textContent = Math.round(lastFix.speed * 3.6);
   $('#stAcc').textContent = Math.round(c.accuracy);
   const ll = [lastFix.lat, lastFix.lng];
@@ -278,16 +281,18 @@ function myBusIcon() {
   ic.options.html = ic.options.html.replace('class="bus-marker', 'class="bus-marker live me');
   return ic;
 }
-/** Throttle: send when moved ≥5 m (≤ every 1.5 s), turned ≥8° (≤ every 0.9 s), or every 10 s (heartbeat) */
+/** Throttle: send when moved ≥5 m (≤ every 1.5 s), turned ≥8° or speed changed ≥4 km/h (≤ every 0.9 s), or every 10 s (heartbeat) */
 function maybeSend(force = false) {
   if (!lastFix || !sending) return;
   const now = Date.now(), heading = busHeading();
   const moved = lastSentPos ? haversine(lastSentPos, lastFix) : Infinity;
   // A turn of 8° or more goes out straight away (at most ~1 per second) so passengers see it
   const turned = heading != null && (lastSentHeading == null || Math.abs(angDiff(lastSentHeading, heading)) >= 8);
-  const due = (moved >= 5 && now - lastSent >= 1500) || (turned && now - lastSent >= 900) || now - lastSent >= 10000;
+  // A speed change of 4 km/h or more (including stopping) also goes out promptly
+  const sped = Math.abs((lastSentSpeed ?? -9) - lastFix.speed) * 3.6 >= 4;
+  const due = (moved >= 5 && now - lastSent >= 1500) || ((turned || sped) && now - lastSent >= 900) || now - lastSent >= 10000;
   if (!force && !due) return;
-  lastSent = now; lastSentPos = { ...lastFix }; lastSentHeading = heading;
+  lastSent = now; lastSentPos = { ...lastFix }; lastSentHeading = heading; lastSentSpeed = lastFix.speed;
   api.set(`live/${profile.regKey}`, {
     lat: +lastFix.lat.toFixed(6), lng: +lastFix.lng.toFixed(6), speed: +lastFix.speed.toFixed(1),
     heading: heading != null ? Math.round(heading) : null, acc: Math.round(lastFix.acc), ts: now, online: true, dir,
