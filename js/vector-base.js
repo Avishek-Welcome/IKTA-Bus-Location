@@ -24,6 +24,36 @@ function labelExpr(lang) {
 }
 const isNameLabel = (tf) => tf && /name/.test(JSON.stringify(tf));
 
+// Landmarks people navigate by: shown from street level (Leaflet zoom ~13.5) with their
+// icon and name, and preferred over other labels when space is tight. Other shops and
+// places appear one zoom level earlier than the style's default.
+const LANDMARKS = ['place_of_worship', 'hospital', 'railway', 'school', 'college', 'town_hall', 'police', 'stadium',
+  'park', 'attraction', 'monument', 'museum', 'cinema', 'theatre', 'post', 'library', 'ferry_terminal', 'castle',
+  'fire_station', 'zoo'];
+const RANK = ['match', ['get', 'class'], 'hospital', 0, 'railway', 1, 'place_of_worship', 3, 'college', 4,
+  'school', 5, 'police', 6, 'town_hall', 7, 'stadium', 8, 'park', 9, 'attraction', 10, 'monument', 10, 'museum', 10, 20];
+function addLandmarks(gl) {
+  const layers = gl.getStyle().layers, base = layers.find((l) => l.id === 'poi_r1');
+  if (!base || gl.getLayer('ikta_landmarks')) return;
+  const isLandmark = ['match', ['get', 'class'], LANDMARKS, true, false];
+  for (const [id, min] of [['poi_r1', 14], ['poi_r7', 15], ['poi_r20', 16]]) {
+    const l = layers.find((x) => x.id === id);
+    if (!l) continue;
+    gl.setFilter(id, ['all', l.filter || true, ['!', isLandmark]]);
+    gl.setLayerZoomRange(id, min, 24);
+  }
+  gl.addLayer({
+    ...base, id: 'ikta_landmarks', minzoom: 12.5, maxzoom: 24,
+    filter: ['all', ['match', ['geometry-type'], ['Point', 'MultiPoint'], true, false], ['has', 'name'], isLandmark],
+    layout: { ...base.layout, 'symbol-sort-key': RANK, 'icon-size': 1.15, 'text-size': ['interpolate', ['linear'], ['zoom'], 13, 11.5, 16, 13.5] },
+  }, (() => {
+    // just above the style's own POI layers, below area and city names
+    let last = -1;
+    layers.forEach((l, i) => { if (l.id.startsWith('poi_')) last = i; });
+    return layers[last + 1]?.id;
+  })());
+}
+
 function cssOnce() {
   if (document.getElementById('maplibre-css')) return;
   const l = document.createElement('link');
@@ -80,14 +110,15 @@ export function addVectorBase(map, { raster, lang }) {
     gl, el, lang: null,
     setLanguage(l) {
       this.lang = l;
-      if (!gl.isStyleLoaded()) return;
+      if (!styleReady) return; // isStyleLoaded() is still false while sources load
       for (const ly of gl.getStyle().layers) {
         if (ly.type !== 'symbol') continue;
         if (isNameLabel(gl.getLayoutProperty(ly.id, 'text-field'))) gl.setLayoutProperty(ly.id, 'text-field', labelExpr(l));
       }
     },
   };
-  gl.on('style.load', () => layer.setLanguage(layer.lang));
+  let styleReady = false;
+  gl.on('style.load', () => { styleReady = true; addLandmarks(gl); layer.setLanguage(layer.lang); });
   layer.setLanguage(lang);
   // Swap the raster map out once the vector map has actually drawn tiles
   // (if the tile server can't be reached, the raster map simply stays).
