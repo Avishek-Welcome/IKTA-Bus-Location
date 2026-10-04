@@ -55,6 +55,8 @@ if ! firebase projects:list >/dev/null 2>&1; then
 fi
 ok "Firebase CLI ready"
 FB=(firebase --project "$PROJECT" --non-interactive)
+# Cloud Shell has no IPv6 route; force IPv4 so Hosting uploads do not time out
+export NODE_OPTIONS="${NODE_OPTIONS:-} --dns-result-order=ipv4first"
 
 # ---------------------------------------------------------------------
 step "3/8  Turning on Email/Password and Anonymous sign-in"

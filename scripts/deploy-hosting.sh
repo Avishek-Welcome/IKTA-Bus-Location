@@ -30,11 +30,21 @@ if ! firebase hosting:sites:list --project "$PROJECT" 2>/dev/null | grep -q "$PR
     && ok "Hosting site created" || warn "Could not create the Hosting site automatically"
 fi
 
-rm -f firebase-debug.log
-if firebase deploy --only hosting --project "$PROJECT" --non-interactive; then
-  ok "Website live at https://$PROJECT.web.app"
-else
-  warn "Hosting deploy failed. Copy the lines below and send them to Claude:"
-  grep -iE "error|denied|quota|40[0-9]|50[0-9]|message" firebase-debug.log 2>/dev/null | tail -20
-  exit 1
-fi
+# Cloud Shell has no working IPv6 route: Node's fetch tries IPv6 first and the file
+# upload to upload-firebasehosting.googleapis.com times out. Force IPv4.
+export NODE_OPTIONS="${NODE_OPTIONS:-} --dns-result-order=ipv4first"
+code="$(curl -4 -s -o /dev/null -m 15 -w '%{http_code}' https://upload-firebasehosting.googleapis.com/ || true)"
+[ "$code" = "000" ] && warn "upload-firebasehosting.googleapis.com is not reachable over IPv4 either (network problem)" || ok "Upload server reachable (IPv4)"
+
+for attempt in 1 2 3; do
+  rm -f firebase-debug.log
+  if firebase deploy --only hosting --project "$PROJECT" --non-interactive; then
+    ok "Website live at https://$PROJECT.web.app"
+    exit 0
+  fi
+  warn "Attempt $attempt failed; retrying in 10 s…"
+  sleep 10
+done
+warn "Hosting deploy failed. Copy the lines below and send them to Claude:"
+grep -iE "error|denied|quota|timeout|40[0-9]|50[0-9]" firebase-debug.log 2>/dev/null | tail -20
+exit 1
