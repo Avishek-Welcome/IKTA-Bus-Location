@@ -1,10 +1,12 @@
 // IKTA Bus service worker — instant repeat loads + offline map shell.
-const VERSION = 'ikta-v6';
+const VERSION = 'ikta-v7';
 const SHELL = [
   './', 'index.html', 'driver.html', 'owner.html', 'favorites.html', 'coins.html', 'admin.html',
   'css/app.css', 'js/map-boot.js', 'js/common.js', 'js/api.js', 'js/favs.js', 'js/firebase-config.js',
   'js/passenger.js', 'js/driver.js', 'js/owner.js', 'js/favorites.js', 'js/coins.js', 'js/admin.js',
   'js/backend-firebase.js', 'js/backend-demo.js', 'js/demo-seed.js',
+  'js/vector-base.js', 'lib/maplibre-gl/maplibre-gl.mjs', 'lib/maplibre-gl/maplibre-gl-shared.mjs',
+  'lib/maplibre-gl/maplibre-gl-worker.mjs', 'lib/maplibre-gl/maplibre-gl.css',
   'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png',
 ];
 const TILE_CACHE = 'ikta-tiles-osm';
@@ -32,7 +34,9 @@ self.addEventListener('fetch', (e) => {
   if (/firebaseio\.com|firebasedatabase\.app|googleapis\.com|identitytoolkit|securetoken/.test(url.host)) return;
 
   // Map tiles: cache-first (tiles rarely change) → instant map on repeat visits & offline
-  if (url.host === 'tile.openstreetmap.org') {
+  // OpenFreeMap vector tiles (dated paths), fonts and sprites never change once published
+  const ofmStatic = url.host === 'tiles.openfreemap.org' && /\.pbf$|\/sprites\/|\/fonts\//.test(url.pathname);
+  if (url.host === 'tile.openstreetmap.org' || ofmStatic) {
     e.respondWith(caches.open(TILE_CACHE).then(async (c) => {
       const hit = await c.match(req);
       if (hit) return hit;

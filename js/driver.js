@@ -1,6 +1,6 @@
 // IKTA Bus — Driver console: sign in, live GPS broadcast, route & bus-stop editor.
 import {
-  $, $$, esc, boot, store, toast, icon, haversine, createMap, userMovingMap, blockPageZoom, setupRotation, sheetSwipe, busIcon, stopIcon, glide, colorFor, CROWD, timeAgo,
+  $, $$, esc, boot, store, toast, icon, haversine, createMap, userMovingMap, blockPageZoom, setupRotation, mapLangPicker, sheetSwipe, busIcon, stopIcon, glide, colorFor, CROWD, timeAgo,
   idToEmail, friendlyError, setBusy, promptBox, confirmBox, wirePasswordToggles, fmtDist,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
@@ -109,6 +109,7 @@ function initMap() {
   routeLayer = L.layerGroup().addTo(map);
   blockPageZoom();
   setupRotation(map, $('#compassBtn'));
+  mapLangPicker($('#langBtn'));
   // Dragging the map stops auto-follow until the center button is tapped
   map.on('dragstart', () => { follow = false; });
   setTimeout(() => map.invalidateSize(), 50);

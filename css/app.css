@@ -318,6 +318,13 @@ button, a, .leaflet-control { touch-action: manipulation; }
   box-shadow: var(--shadow); display: grid; place-items: center; color: var(--ink); transition: .15s; position: relative;
 }
 .fab:active { transform: scale(.92); }
+/* Map language picker: native select stretched invisibly over the button */
+.lang-fab { cursor: pointer; overflow: hidden; }
+.lang-fab .glyph { font-size: 21px; font-weight: 700; line-height: 1; }
+.lang-fab select { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; font-size: 16px; }
+/* Vector base map (js/vector-base.js) fades in over the raster tiles once drawn */
+.ikta-gl-base { position: absolute; left: 0; top: 0; z-index: 2; transform-origin: 50% 50%; pointer-events: none; opacity: 0; transition: opacity .3s; }
+.ikta-gl-base.ready { opacity: 1; }
 /* Compass: needle shows where north is; hidden while the map already faces north */
 .fab.compass svg { width: 26px; height: 26px; transform: rotate(var(--needle, 0deg)); transition: none; }
 .fab.compass { transition: opacity .25s, transform .25s; }

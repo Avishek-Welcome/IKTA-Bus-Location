@@ -30,5 +30,6 @@
   el.addEventListener('touchcancel', off, { passive: true });
   // iOS Safari: stop a pinch on a floating button from zooming the whole page
   document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, { passive: false });
+  map._iktaTiles = tiles;
   window.__ikta = { map: map, tiles: tiles, t0: performance.now() };
 })();
