@@ -16,6 +16,7 @@ export const ICONS = {
   star: P('<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>'),
   starFill: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>',
   coin: P('<circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.5-1-1.4-1.5-2.5-1.5-1.5 0-2.5.8-2.5 2s1 1.7 2.5 2 2.5.8 2.5 2-1 2-2.5 2c-1.1 0-2-.5-2.5-1.5M12 6.5V8M12 16v1.5"/>'),
+  navigate: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 19.5 20 12 16.2 4.5 20z" fill="currentColor"/></svg>',
   locate: P('<circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7.5"/>'),
   bell: P('<path d="M18 16v-5a6 6 0 0 0-12 0v5l-2 2h16z"/><path d="M10 21a2 2 0 0 0 4 0"/>'),
   bellOff: P('<path d="M18 16v-5a6 6 0 0 0-9.5-4.9M6 9.5V16l-2 2h14"/><path d="M10 21a2 2 0 0 0 4 0M3 3l18 18"/>'),
@@ -376,6 +377,7 @@ function addRotateThreshold() {
       }
       // Unlock: restart the rotation from here so the map doesn't jump by the threshold
       this._iktaLocked = false;
+      this._map.fire('userrotate');
       const map = this._map, v = map.mouseEventToContainerPoint(e.touches[0]).subtract(map.mouseEventToContainerPoint(e.touches[1]));
       this._startTheta = Math.atan(v.x / v.y);
       this._startBearing = map.getBearing() + (v.y < 0 ? 180 : 0);
@@ -548,7 +550,7 @@ export function busIcon(name, color, { stale = false, dim = false, heading = nul
     iconAnchor: [19, 19],
     popupAnchor: [0, -18],
     html: `<div class="bus-marker ${stale ? 'stale' : ''} ${dim ? 'dim' : ''}" style="--c:${color}">
-      ${heading != null ? `<div class="arrow" style="--h:${Math.round(heading)}deg"></div>` : ''}
+      ${heading != null ? `<div class="arrow" style="--h:${Math.round(heading)}deg"><svg viewBox="0 0 24 24"><path d="M12 1 21 19 12 14.5 3 19z"/></svg></div>` : ''}
       <div class="pin">${ICONS.bus}</div><div class="label">${esc(name)}</div></div>`,
   });
 }

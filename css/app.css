@@ -329,6 +329,8 @@ button, a, .leaflet-control { touch-action: manipulation; }
 /* Vector base map (js/vector-base.js) fades in over the raster tiles once drawn */
 .ikta-gl-base { position: absolute; left: 0; top: 0; z-index: 2; transform-origin: 50% 50%; pointer-events: none; opacity: 0; transition: opacity .3s; }
 .ikta-gl-base.ready { opacity: 1; }
+/* Driver heading-up toggle */
+.fab.nav-fab svg { width: 22px; height: 22px; }
 /* Compass: needle shows where north is; hidden while the map already faces north */
 .fab.compass svg { width: 26px; height: 26px; transform: rotate(var(--needle, 0deg)); transition: none; }
 .fab.compass { transition: opacity .25s, transform .25s; }
@@ -431,13 +433,20 @@ button, a, .leaflet-control { touch-action: manipulation; }
 }
 .bus-marker .pin svg { width: 20px; height: 20px; }
 .bus-marker .arrow {
-  position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; pointer-events: none;
+  position: absolute; left: 50%; top: 50%; width: 92px; height: 92px; margin: -46px 0 0 -46px; pointer-events: none; z-index: 2;
   transform: rotate(var(--h, 0deg)); rotate: var(--map-bearing, 0deg); transition: transform .6s;
 }
+/* Bold travel-direction arrow just ahead of the bus, with a soft beam behind it */
 .bus-marker .arrow::before {
-  content: ""; position: absolute; left: 50%; top: -1px; margin-left: -6px;
-  border: 6px solid transparent; border-bottom: 9px solid var(--c, #2f5bff); border-top: 0;
+  content: ""; position: absolute; left: 50%; top: 4px; width: 30px; height: 34px; margin-left: -15px;
+  background: radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--c, #2f5bff) 35%, transparent), transparent 70%);
 }
+.bus-marker .arrow svg {
+  position: absolute; left: 50%; top: -2px; width: 24px; height: 24px; margin-left: -12px;
+  fill: var(--c, #2f5bff); stroke: #fff; stroke-width: 2.2; stroke-linejoin: round; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .35));
+}
+.bus-marker.live .arrow { transition: none; }
+.bus-marker.me .arrow svg { width: 30px; height: 30px; margin-left: -15px; top: -8px; }
 .bus-marker .label {
   position: absolute; left: 50%; top: 42px; transform: translateX(-50%); white-space: nowrap;
   background: var(--surface); color: var(--ink); font-weight: 800; font-size: 11px; padding: 2px 7px; border-radius: 8px;
