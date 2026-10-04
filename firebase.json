@@ -2,7 +2,7 @@
   "database": { "rules": "database.rules.json" },
   "hosting": {
     "public": ".",
-    "ignore": ["firebase.json", "database.rules.json", "scripts/**", "android/**", "**/.*", "**/node_modules/**", "README.md"],
+    "ignore": ["firebase.json", "database.rules.json", "scripts/**", "android/**", "ios/**", "**/.*", "**/node_modules/**", "README.md"],
     "headers": [
       { "source": "sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
       { "source": "**/*.@(js|css)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }] },

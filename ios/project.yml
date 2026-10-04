@@ -1,0 +1,28 @@
+# XcodeGen spec for the iPhone app. The Xcode project is generated from this file
+# (`xcodegen generate` in ios/), so IKTABus.xcodeproj is never committed.
+# The bundle ID and Apple team can be overridden at build time (see .github/workflows/ios-app.yml).
+name: IKTABus
+options:
+  bundleIdPrefix: com.ikta
+  deploymentTarget:
+    iOS: "15.0"
+settings:
+  base:
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+targets:
+  IKTABus:
+    type: application
+    platform: iOS
+    sources: [IKTABus]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ikta.bus
+        PRODUCT_NAME: IKTABus
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        INFOPLIST_FILE: IKTABus/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+    scheme: {}

@@ -1,4 +1,4 @@
-// IKTA Bus — inside the Android app (android/), use the phone's own GPS, notifications and
+// IKTA Bus — inside the Android app (android/) or iPhone app (ios/), use the phone's own GPS, notifications and
 // screen-on through window.IKTAApp. The app's GPS keeps running while a driver shares with
 // the screen off, which the WebView's built-in geolocation can't promise.
 // In a normal browser window.IKTAApp doesn't exist and this file does nothing.
