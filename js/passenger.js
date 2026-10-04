@@ -1,7 +1,7 @@
 // IKTA Bus — Passenger (home) page: live map, route search, ETA, alerts, crowd feedback.
 import {
   $, $$, esc, boot, store, toast, icon, haversine, projectOnPath, fmtDist, fmtEta, timeAgo,
-  createMap, userMovingMap, setupRotation, upgradeMap, mapLangPicker, mapLangSelect, sheetSwipe, setSheetState, busIcon, setBusHeading, setBusSpeed, speedChip, speedo, meIcon, stopIcon, glide, colorFor, CROWD, LIVE_FRESH_MS, unlockAudio, playAlertTone,
+  createMap, userMovingMap, setupRotation, upgradeMap, mapLangPicker, mapLangSelect, sheetSwipe, setSheetState, sheetStateOf, busIcon, setBusHeading, setBusSpeed, speedChip, speedo, meIcon, stopIcon, glide, colorFor, CROWD, LIVE_FRESH_MS, unlockAudio, playAlertTone,
   friendlyError, debounce,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
@@ -45,7 +45,8 @@ const busSpeedo = speedo(document.body, 'mini');
   const place = () => {
     const r = $('#sheet').getBoundingClientRect(), side = innerWidth >= 900;
     const left = side ? r.right + 14 : 14;
-    const bottom = side ? innerHeight - r.bottom : Math.min(innerHeight - r.top + 12, innerHeight - 220);
+    const navTop = document.querySelector('.bottom-nav')?.getBoundingClientRect().top ?? innerHeight;
+    const bottom = side ? innerHeight - r.bottom : Math.min(innerHeight - Math.min(r.top, navTop) + 12, innerHeight - 220);
     const key = `${Math.round(left)}|${Math.round(bottom)}`;
     if (key !== last) { last = key; busSpeedo.el.style.left = `${Math.round(left)}px`; busSpeedo.el.style.bottom = `${Math.round(bottom)}px`; }
     requestAnimationFrame(place);
@@ -64,8 +65,29 @@ const setPeek = () => sheet.style.setProperty('--peek', `${$('#searchForm').offs
 setPeek();
 // three snap states: collapsed (peek) → half (default) → full; swipe up/down or tap the handle
 const sheetState = (st) => setSheetState(sheet, st);
-sheetSwipe(sheet);
-map.on('dragstart', () => { focusReg = null; if (innerWidth < 900) sheetState('collapsed'); });
+sheetSwipe(sheet, { hideable: true });
+// Full-screen map on phones: the panel tucks away into a round button when the map is touched,
+// swiped below its peek, or left untouched for a while; tapping the button brings it back.
+const sheetFab = $('#sheetFab');
+const busy = () => sheet.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
+function hideSheet() { if (innerWidth < 900 && !busy()) sheetState('hidden'); }
+let idleT = 0;
+const IDLE_MS = 12000;
+const resetIdle = () => {
+  clearTimeout(idleT);
+  idleT = setTimeout(() => { const st = sheetStateOf(sheet); if (st === 'collapsed' || st === 'half') hideSheet(); else resetIdle(); }, IDLE_MS);
+};
+['touchstart', 'pointerdown', 'keydown', 'input', 'scroll'].forEach((ev) => sheet.addEventListener(ev, resetIdle, { passive: true, capture: true }));
+sheet.addEventListener('sheetstate', (e) => {
+  const away = e.detail === 'hidden';
+  sheetFab.classList.toggle('show', away);
+  document.body.classList.toggle('sheet-away', away);
+  if (!away) resetIdle();
+});
+sheetFab.addEventListener('click', () => sheetState('half'));
+resetIdle();
+map.on('dragstart', () => { focusReg = null; hideSheet(); });
+map.on('click', () => hideSheet());
 
 // ---------- Geolocation ----------
 function onPos(p) {
@@ -474,6 +496,7 @@ function renderAll() {
       : '<br><span class="small">This bus has no saved route yet.</span>';
     $('#nearHead').innerHTML = `<span>Bus <strong>${esc(name)}</strong> · <strong>${near.length}</strong> running now <a href="#" data-chip="">show all buses</a>${line}</span>`;
   } else {
+    $('#sheetFabCount').textContent = near.length; $('#sheetFabCount').classList.toggle('hidden', !near.length);
     $('#nearHead').innerHTML = `<span><strong>${near.length}</strong> live bus${near.length === 1 ? '' : 'es'} ${userPos ? 'near you' : 'on the map'}${Object.keys(routes).length ? ' · <span class="small">pick a bus number to see its route</span>' : ''}</span>`;
   }
   list.innerHTML = near.length ? near.map((x) => busCard(x.b, x.reg, null)).join('')
