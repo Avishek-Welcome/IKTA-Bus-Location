@@ -103,7 +103,15 @@ export function addVectorBase(map, { raster, lang }) {
   let animating = false;
   map.on('zoomanim', (e) => { animating = true; onZoomAnim(e); });
   map.on('zoomend', () => { animating = false; sync(); });
-  map.on('move rotate viewreset', () => { if (!animating) sync(); });
+  // One frame can fire several of these (the driver's map turns and pans together);
+  // follow them once, still before the frame is painted.
+  let queued = false;
+  const syncSoon = () => {
+    if (animating || queued) return;
+    queued = true;
+    queueMicrotask(() => { queued = false; if (!animating) sync(); });
+  };
+  map.on('move rotate viewreset', syncSoon);
   map.on('resize', () => { resize(); sync(); });
 
   const layer = {
