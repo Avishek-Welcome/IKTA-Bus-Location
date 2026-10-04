@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>IKTA Bus — Favourites</title>
+  <meta name="description" content="Your saved bus routes and bus numbers, organised in multiple favourite lists.">
+  <meta name="theme-color" content="#2f5bff">
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="modulepreload" href="js/favorites.js">
+  <link rel="modulepreload" href="js/common.js">
+  <link rel="modulepreload" href="js/api.js">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <script>try{var t=JSON.parse(localStorage.getItem('ikta_theme'));if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="index.html"><img src="icons/icon.svg" alt="" width="34" height="34"><span class="txt">IKTA <b>Bus</b></span></a>
+    <nav class="role-switch" aria-label="Switch account">
+      <a href="index.html" class="active" aria-current="page"><i data-icon="user"></i><span>Passenger</span></a>
+      <a href="driver.html"><i data-icon="wheel"></i><span>Driver</span></a>
+      <a href="owner.html"><i data-icon="briefcase"></i><span>Owner</span></a>
+    </nav>
+    <button class="icon-btn" id="themeBtn" aria-label="Toggle dark mode"></button>
+  </header>
+  <main class="page">
+    <section class="hero">
+      <h1>⭐ Favourites</h1>
+      <p>Saved routes and bus numbers — one tap to see live buses and arrival times.</p>
+      <div class="kpis">
+        <div class="kpi"><b id="kLists">0</b><span>Lists</span></div>
+        <div class="kpi"><b id="kRoutes">0</b><span>Routes</span></div>
+        <div class="kpi"><b id="kBuses">0</b><span>Bus numbers</span></div>
+      </div>
+    </section>
+    <div class="row wrap" style="margin:18px 0 12px">
+      <div class="chips" id="filterChips" style="flex:1;min-width:0">
+        <button class="chip active" data-filter="all">All</button>
+        <button class="chip" data-filter="route">🚏 Routes</button>
+        <button class="chip" data-filter="bus">🚌 Bus numbers</button>
+      </div>
+      <button class="btn btn-primary btn-sm" id="newListBtn"><i data-icon="plus"></i> New list</button>
+    </div>
+    <div id="lists"></div>
+    <section class="card" style="margin-top:16px">
+      <h2>💡 Quick add a bus number</h2>
+      <form class="row" id="quickBus" autocomplete="off">
+        <input class="input" name="bus" placeholder="e.g. DN 12, L38" list="busNameList" style="flex:1">
+        <datalist id="busNameList"></datalist>
+        <button class="btn btn-primary">Add</button>
+      </form>
+      <p class="hint">Tip: on the live map, tap ☆ next to a bus or next to “Find buses” to save it here.</p>
+    </section>
+  </main>
+  <nav class="bottom-nav" aria-label="Passenger">
+    <a href="index.html"><i data-icon="map"></i>Live map</a>
+    <a href="favorites.html" class="active" aria-current="page"><i data-icon="star"></i>Favourites</a>
+    <a href="coins.html"><i data-icon="coin"></i>IKTA Coins</a>
+  </nav>
+  <script type="module" src="js/favorites.js"></script>
+</body>
+</html>

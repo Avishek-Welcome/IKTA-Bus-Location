@@ -1,0 +1,118 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "admins": {
+      "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": false }
+    },
+
+    "secretCodes": {
+      ".read": "auth != null && root.child('admins/' + auth.uid).val() === true",
+      ".indexOn": ["used"],
+      "$code": {
+        ".read": true,
+        ".write": "auth != null && (root.child('admins/' + auth.uid).val() === true || (data.exists() && data.child('used').val() === false && newData.child('used').val() === true && newData.child('usedBy').val() === auth.uid))",
+        ".validate": "$code.length === 10 && newData.hasChild('used')"
+      }
+    },
+
+    "usernames": {
+      "$userId": {
+        ".read": true,
+        ".write": "auth != null && ((!data.exists() && (newData.child('uid').val() === auth.uid || (newData.child('ownerUid').val() === auth.uid && root.child('owners/' + auth.uid).exists()))) || (data.exists() && !newData.exists() && data.child('ownerUid').val() === auth.uid))"
+      }
+    },
+
+    "owners": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['name', 'userId', 'phone', 'code']) && root.child('secretCodes/' + newData.child('code').val() + '/usedBy').val() === auth.uid"
+      }
+    },
+
+    "buses": {
+      ".read": true,
+      "$reg": {
+        ".write": "auth != null && ((!data.exists() && newData.child('ownerUid').val() === auth.uid && root.child('owners/' + auth.uid).exists()) || data.child('ownerUid').val() === auth.uid)",
+        ".validate": "!newData.exists() || newData.hasChildren(['regNo', 'busName', 'busKey', 'ownerUid'])",
+        "ownerUid": { ".validate": "!data.exists() || newData.val() === data.val()" }
+      }
+    },
+
+    "drivers": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || data.child('ownerUid').val() === auth.uid)",
+        ".write": "auth != null && root.child('owners/' + auth.uid).exists() && (data.exists() ? data.child('ownerUid').val() === auth.uid : newData.child('ownerUid').val() === auth.uid)",
+        ".validate": "!newData.exists() || root.child('buses/' + newData.child('regKey').val() + '/ownerUid').val() === auth.uid"
+      }
+    },
+
+    "ownerDrivers": {
+      "$ownerUid": {
+        ".read": "auth != null && auth.uid === $ownerUid",
+        ".write": "auth != null && auth.uid === $ownerUid"
+      }
+    },
+
+    "stops": {
+      ".read": true,
+      "$stopId": {
+        ".write": "auth != null && !data.exists() && (root.child('drivers/' + auth.uid).exists() || root.child('owners/' + auth.uid).exists())",
+        ".validate": "newData.hasChildren(['name', 'lat', 'lng']) && newData.child('name').isString() && newData.child('name').val().length <= 80 && newData.child('lat').isNumber() && newData.child('lng').isNumber()"
+      }
+    },
+
+    "routes": {
+      ".read": true,
+      "$busKey": {
+        ".write": "auth != null && root.child('drivers/' + auth.uid + '/busKey').val() === $busKey",
+        ".validate": "newData.hasChildren(['busName', 'stops', 'source', 'destination'])"
+      }
+    },
+
+    "live": {
+      ".read": true,
+      "$reg": {
+        ".write": "auth != null && (root.child('buses/' + $reg + '/driverUid').val() === auth.uid || root.child('buses/' + $reg + '/ownerUid').val() === auth.uid)",
+        ".validate": "!newData.exists() || (newData.hasChildren(['ts']) && (!newData.hasChild('lat') || (newData.child('lat').isNumber() && newData.child('lng').isNumber())))"
+      }
+    },
+
+    "crowd": {
+      ".read": true,
+      "$reg": {
+        ".write": "auth != null && root.child('buses/' + $reg).exists()",
+        ".validate": "newData.child('level').val().matches(/^(empty|moderate|crowded|packed)$/) && newData.child('ts').val() === now"
+      }
+    },
+
+    "feedback": {
+      ".read": true,
+      "$reg": {
+        "$fid": {
+          ".write": "auth != null && !data.exists() && newData.child('by').val() === auth.uid",
+          ".validate": "newData.child('level').val().matches(/^(empty|moderate|crowded|packed)$/) && newData.child('ts').val() === now"
+        }
+      }
+    },
+
+    "passengers": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "lastFeedbackAt": {
+          ".validate": "newData.val() === now && (!data.exists() || now - data.val() >= 110000)"
+        },
+        "coins": {
+          ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 5 && newData.parent().child('lastFeedbackAt').val() === now"
+        },
+        "history": {
+          "$hid": { ".validate": "!data.exists() && newData.child('coins').val() === 5" }
+        },
+        "favorites": { ".validate": "newData.hasChild('lists')" }
+      }
+    }
+  }
+}

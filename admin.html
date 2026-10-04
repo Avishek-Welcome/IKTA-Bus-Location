@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>IKTA Bus — Admin</title>
+  <meta name="description" content="IKTA Bus administration: generate one-time owner registration codes and see who used them.">
+  <meta name="theme-color" content="#2f5bff">
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="modulepreload" href="js/admin.js">
+  <link rel="modulepreload" href="js/common.js">
+  <link rel="modulepreload" href="js/api.js">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <script>try{var t=JSON.parse(localStorage.getItem('ikta_theme'));if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="index.html"><img src="icons/icon.svg" alt="" width="34" height="34"><span class="txt">IKTA <b>Bus</b></span></a>
+    <nav class="role-switch" aria-label="Switch account">
+      <a href="index.html"><i data-icon="user"></i><span>Passenger</span></a>
+      <a href="driver.html"><i data-icon="wheel"></i><span>Driver</span></a>
+      <a href="owner.html"><i data-icon="briefcase"></i><span>Owner</span></a>
+    </nav>
+    <button class="icon-btn" id="themeBtn" aria-label="Toggle dark mode"></button>
+  </header>
+  <main class="auth-wrap hidden" id="authView">
+    <div class="auth-card">
+      <div class="auth-head"><div class="logo"><i data-icon="shield"></i></div><h1>Administrator</h1><p>Generate one-time owner registration codes</p></div>
+      <form class="card stack" id="loginForm">
+        <label class="field"><span>Admin user ID or email</span><input class="input" name="userId" autocomplete="username" autocapitalize="none" required></label>
+        <label class="field"><span>Password</span><div class="input-wrap"><input class="input" type="password" name="password" autocomplete="current-password" required><button type="button" class="addon" data-toggle-pw aria-label="Show password"></button></div></label>
+        <div class="error-text" data-err></div>
+        <button class="btn btn-primary btn-block">Sign in</button>
+        <p class="hint center" id="demoHint"></p>
+      </form>
+    </div>
+  </main>
+  <main class="page no-nav hidden" id="dashView">
+    <section class="hero">
+      <div class="row" style="position:relative;z-index:1"><div><h1>🛡️ Secret codes</h1><p>10-character, non-repeating, alphanumeric + special. Each code registers exactly one owner.</p></div>
+        <span class="spacer"></span><button class="icon-btn" id="logoutBtn" aria-label="Sign out" style="background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.3);color:#fff"><i data-icon="logout"></i></button></div>
+      <div class="kpis"><div class="kpi"><b id="kTotal">0</b><span>Total</span></div><div class="kpi"><b id="kFree">0</b><span>Unused</span></div><div class="kpi"><b id="kUsed">0</b><span>Used</span></div></div>
+    </section>
+    <section class="card" style="margin-top:16px">
+      <h2>✨ Generate codes</h2>
+      <form class="row wrap" id="genForm">
+        <label class="field" style="flex:1;min-width:140px"><span>How many?</span><input class="input" type="number" name="n" min="1" max="100" value="5"></label>
+        <label class="field" style="flex:2;min-width:180px"><span>Note (optional)</span><input class="input" name="note" placeholder="e.g. For Barasat operators"></label>
+        <button class="btn btn-primary" style="align-self:flex-end">Generate</button>
+      </form>
+    </section>
+    <div class="row" style="margin:18px 2px 10px">
+      <h2 style="font-size:16px">All codes</h2><span class="spacer"></span>
+      <div class="chips"><button class="chip active" data-f="all">All</button><button class="chip" data-f="free">Unused</button><button class="chip" data-f="used">Used</button></div>
+    </div>
+    <section class="card table-wrap"><table class="table"><thead><tr><th>Code</th><th>Status</th><th>Used by</th><th>When</th><th></th></tr></thead><tbody id="codeRows"></tbody></table></section>
+  </main>
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>

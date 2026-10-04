@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>IKTA Bus — Driver</title>
+  <meta name="description" content="IKTA Bus driver console: sign in, share live GPS location and manage route bus stops.">
+  <meta name="theme-color" content="#2f5bff">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="preconnect" href="https://a.basemaps.cartocdn.com">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" crossorigin>
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="modulepreload" href="js/driver.js">
+  <link rel="modulepreload" href="js/common.js">
+  <link rel="modulepreload" href="js/api.js">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <script>try{var t=JSON.parse(localStorage.getItem('ikta_theme'));if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="index.html"><img src="icons/icon.svg" alt="" width="34" height="34"><span class="txt">IKTA <b>Bus</b></span></a>
+    <nav class="role-switch" aria-label="Switch account">
+      <a href="index.html"><i data-icon="user"></i><span>Passenger</span></a>
+      <a href="driver.html" class="active" aria-current="page"><i data-icon="wheel"></i><span>Driver</span></a>
+      <a href="owner.html"><i data-icon="briefcase"></i><span>Owner</span></a>
+    </nav>
+    <button class="icon-btn" id="themeBtn" aria-label="Toggle dark mode"></button>
+  </header>
+
+  <!-- ============ Sign in ============ -->
+  <main class="auth-wrap hidden" id="authView">
+    <div class="auth-card">
+      <div class="auth-head">
+        <div class="logo"><i data-icon="wheel"></i></div>
+        <h1>Driver sign in</h1>
+        <p>Use the user ID &amp; password given by your bus owner</p>
+      </div>
+      <div class="card">
+        <div class="saved-logins" id="savedLogins"></div>
+        <form id="loginForm" class="stack" autocomplete="on">
+          <label class="field"><span>Driver user ID</span>
+            <input class="input" name="userId" id="userId" autocomplete="username" autocapitalize="none" spellcheck="false" required placeholder="e.g. driver_dn12">
+          </label>
+          <label class="field"><span>Password</span>
+            <div class="input-wrap"><input class="input" type="password" name="password" id="password" autocomplete="current-password" required placeholder="••••••••"><button type="button" class="addon" data-toggle-pw aria-label="Show password"></button></div>
+          </label>
+          <label class="checkbox"><input type="checkbox" id="remember" checked> Save user ID &amp; password on this device for faster sign in</label>
+          <div class="error-text" id="loginErr"></div>
+          <button class="btn btn-primary btn-block" id="loginBtn">Sign in &amp; open map</button>
+        </form>
+        <p class="hint center" id="demoHint"></p>
+      </div>
+      <p class="hint center" style="margin-top:14px">Don't have an account? Ask your bus owner to create one in the <a href="owner.html">Owner</a> console.</p>
+    </div>
+  </main>
+
+  <!-- ============ Driver console ============ -->
+  <div id="appView" class="hidden">
+    <div id="map" role="application" aria-label="Driver map"></div>
+    <div class="fabs">
+      <button class="fab" id="centerBtn" aria-label="Center on bus"><i data-icon="locate"></i></button>
+    </div>
+    <div class="mode-banner hidden" id="tapBanner">Tap the map where the new stop is <button id="tapCancel">Cancel</button></div>
+
+    <aside class="sheet no-nav half" id="sheet">
+      <div class="sheet-handle" id="sheetHandle" role="button" tabindex="0" aria-label="Expand or collapse panel"></div>
+      <div class="sheet-body">
+        <div class="row" style="margin-bottom:12px">
+          <div class="bus-avatar" id="busAvatar">—</div>
+          <div style="min-width:0">
+            <div class="bus-name" id="busTitle">Loading…</div>
+            <div class="bus-reg mono" id="busReg"></div>
+          </div>
+          <span class="spacer"></span>
+          <span class="badge" id="liveBadge">Offline</span>
+        </div>
+        <div class="tabs" role="tablist">
+          <button class="active" data-tab="broadcast" role="tab">Broadcast</button>
+          <button data-tab="route" role="tab">Route</button>
+          <button data-tab="account" role="tab">Account</button>
+        </div>
+
+        <!-- Broadcast -->
+        <section data-panel="broadcast" style="margin-top:14px">
+          <button class="broadcast-btn" id="bcBtn"><span><i data-icon="radio"></i><span id="bcLabel">START<br>SHARING</span></span></button>
+          <p class="center muted small" id="bcStatus" style="margin:0">Your location is not being shared.</p>
+          <div class="field" style="margin-top:14px"><span>Travelling towards</span>
+            <div class="tabs" id="dirTabs">
+              <button class="active" data-dir="fwd" id="dirFwd">→ Destination</button>
+              <button data-dir="rev" id="dirRev">← Source</button>
+            </div>
+          </div>
+          <div class="stats">
+            <div class="stat"><b id="stSpeed">0</b><span>km/h</span></div>
+            <div class="stat"><b id="stAcc">—</b><span>GPS ±m</span></div>
+            <div class="stat"><b id="stSent">0</b><span>updates</span></div>
+            <div class="stat"><b id="stLast">—</b><span>last sent</span></div>
+          </div>
+          <div class="row wrap" style="margin-top:12px;gap:6px">
+            <span class="badge" id="crowdNow">👥 No crowd report</span>
+            <span class="badge" id="wakeBadge">Screen lock: default</span>
+            <span class="badge" id="netBadge">Online</span>
+          </div>
+          <p class="hint">Keep this screen open while driving. The screen is kept awake automatically where supported; on iPhone the browser pauses GPS when the app is in the background.</p>
+        </section>
+
+        <!-- Route editor -->
+        <section data-panel="route" class="hidden" style="margin-top:14px">
+          <div class="row" style="margin-bottom:8px">
+            <h3 id="routeTitle">Route</h3><span class="spacer"></span>
+            <span class="badge" id="routeDirty"></span>
+          </div>
+          <p class="hint" style="margin-top:0">All <b id="routeBusName">—</b> buses share this route. Stops are auto-arranged by distance from the source stop.</p>
+          <div class="grid-2" style="margin:10px 0">
+            <button class="btn btn-ghost btn-sm" id="addHereBtn"><i data-icon="pin"></i> At my location</button>
+            <button class="btn btn-ghost btn-sm" id="addTapBtn"><i data-icon="map"></i> Tap on map</button>
+          </div>
+          <div class="input-wrap" style="position:relative">
+            <input class="input" id="stopSearch" placeholder="Add an existing bus stop…" autocomplete="off">
+          </div>
+          <ul class="stop-list" id="stopList" style="margin-top:8px"></ul>
+          <div class="row" style="margin-top:12px">
+            <button class="btn btn-ghost" id="sortBtn" style="flex:1">↕ Auto-arrange</button>
+            <button class="btn btn-primary" id="saveRouteBtn" style="flex:1.3">Save route</button>
+          </div>
+        </section>
+
+        <!-- Account -->
+        <section data-panel="account" class="hidden" style="margin-top:14px">
+          <div class="card" style="box-shadow:none">
+            <table class="table"><tbody id="acctTable"></tbody></table>
+          </div>
+          <div class="stack" style="margin-top:12px">
+            <button class="btn btn-ghost btn-block" id="forgetBtn"><i data-icon="key"></i> Forget saved login on this device</button>
+            <button class="btn btn-danger btn-block" id="logoutBtn"><i data-icon="logout"></i> Stop sharing &amp; sign out</button>
+          </div>
+        </section>
+      </div>
+    </aside>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin defer></script>
+  <script type="module" src="js/driver.js"></script>
+</body>
+</html>
