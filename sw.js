@@ -1,5 +1,5 @@
 // IKTA Bus service worker — instant repeat loads + offline map shell.
-const VERSION = 'ikta-v3';
+const VERSION = 'ikta-v4';
 const SHELL = [
   './', 'index.html', 'driver.html', 'owner.html', 'favorites.html', 'coins.html', 'admin.html',
   'css/app.css', 'js/map-boot.js', 'js/common.js', 'js/api.js', 'js/favs.js', 'js/firebase-config.js',
@@ -11,7 +11,7 @@ const TILE_CACHE = 'ikta-tiles-osm';
 const MAX_TILES = 800;
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== TILE_CACHE).map((k) => caches.delete(k))))
