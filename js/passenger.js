@@ -1,7 +1,7 @@
 // IKTA Bus — Passenger (home) page: live map, route search, ETA, alerts, crowd feedback.
 import {
   $, $$, esc, boot, store, toast, icon, haversine, buildPath, projectOnPath, fmtDist, fmtEta, timeAgo,
-  createMap, userMovingMap, busIcon, meIcon, stopIcon, glide, colorFor, CROWD, LIVE_FRESH_MS, unlockAudio, playAlertTone,
+  createMap, userMovingMap, setupRotation, sheetSwipe, setSheetState, busIcon, meIcon, stopIcon, glide, colorFor, CROWD, LIVE_FRESH_MS, unlockAudio, playAlertTone,
   friendlyError, debounce,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
@@ -13,6 +13,7 @@ demoBanner();
 // ---------- Map (already created by map-boot.js for instant first paint) ----------
 const map = window.__ikta?.map || createMap('map');
 L.control.zoom({ position: 'bottomright' }).addTo(map);
+setupRotation(map, $('#compassBtn'));
 const stopLayer = L.layerGroup().addTo(map);
 const routeLayer = L.layerGroup().addTo(map);
 const busLayer = L.layerGroup().addTo(map);
@@ -38,21 +39,9 @@ let alertsOn = store.get('ikta_alerts', true);
 const sheet = $('#sheet');
 const setPeek = () => sheet.style.setProperty('--peek', `${$('#searchForm').offsetHeight + 96}px`);
 setPeek();
-// three snap states: collapsed (peek) → half (default) → full
-const sheetState = (st) => { sheet.classList.toggle('collapsed', st === 'collapsed'); sheet.classList.toggle('half', st === 'half'); };
-const curState = () => (sheet.classList.contains('collapsed') ? 'collapsed' : sheet.classList.contains('half') ? 'half' : 'full');
-$('#sheetHandle').addEventListener('click', () => sheetState({ collapsed: 'half', half: 'full', full: 'collapsed' }[curState()]));
-(() => {
-  let y0 = null;
-  const h = $('#sheetHandle');
-  h.addEventListener('pointerdown', (e) => { y0 = e.clientY; h.setPointerCapture(e.pointerId); });
-  h.addEventListener('pointerup', (e) => {
-    if (y0 == null) return;
-    const dy = e.clientY - y0; y0 = null;
-    const order = ['collapsed', 'half', 'full'], i = order.indexOf(curState());
-    if (dy > 40) sheetState(order[Math.max(0, i - 1)]); else if (dy < -40) sheetState(order[Math.min(2, i + 1)]);
-  });
-})();
+// three snap states: collapsed (peek) → half (default) → full; swipe up/down or tap the handle
+const sheetState = (st) => setSheetState(sheet, st);
+sheetSwipe(sheet);
 map.on('dragstart', () => { focusReg = null; if (innerWidth < 900) sheetState('collapsed'); });
 
 // ---------- Geolocation ----------

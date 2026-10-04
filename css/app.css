@@ -274,7 +274,7 @@ button, a, .leaflet-control { touch-action: manipulation; }
 }
 .with-nav .leaflet-bottom { bottom: calc(var(--nav-h) + var(--safe-b)); }
 @media (max-width: 899px) { .leaflet-control-zoom { display: none; } .leaflet-bottom.leaflet-right { bottom: auto; top: calc(var(--topbar-h) + var(--safe-t)); } }
-.leaflet-control-attribution { font-size: 10px; background: var(--glass) !important; color: var(--muted); }
+.leaflet-control-attribution { font-size: 9px; border-radius: 8px 0 0 0; padding: 1px 6px !important; background: var(--glass) !important; color: var(--muted); }
 .leaflet-control-attribution a { color: var(--ink-2); }
 .leaflet-popup-content-wrapper { border-radius: 14px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
 .leaflet-popup-tip { background: var(--surface); }
@@ -289,8 +289,9 @@ button, a, .leaflet-control { touch-action: manipulation; }
   touch-action: pan-y;
 }
 .sheet.no-nav { bottom: 0; padding-bottom: var(--safe-b); }
-.sheet-handle { padding: 10px 0 4px; display: grid; place-items: center; cursor: grab; flex: none; }
-.sheet-handle::before { content: ""; width: 42px; height: 5px; border-radius: 9px; background: var(--line); }
+.sheet-handle { padding: 12px 0 8px; display: grid; place-items: center; cursor: grab; flex: none; touch-action: none; }
+.sheet-handle::before { content: ""; width: 44px; height: 5px; border-radius: 9px; background: var(--muted); opacity: .45; transition: width .2s, opacity .2s; }
+.sheet-handle:active::before { width: 56px; opacity: .7; }
 .sheet-body { overflow-y: auto; padding: 4px 16px 16px; flex: 1; overscroll-behavior: contain; }
 .sheet.half { max-height: min(54dvh, calc(100dvh - var(--topbar-h) - var(--nav-h) - var(--safe-t) - var(--safe-b) - 24px)); }
 .sheet.collapsed { transform: translateY(calc(100% - var(--peek, 150px))); }
@@ -312,9 +313,15 @@ button, a, .leaflet-control { touch-action: manipulation; }
   top: calc(var(--topbar-h) + var(--safe-t) + 52px);
 }
 .fab {
-  width: 48px; height: 48px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface);
+  width: 48px; height: 48px; border-radius: 16px; border: 1px solid var(--line); background: var(--glass);
+  backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4);
   box-shadow: var(--shadow); display: grid; place-items: center; color: var(--ink); transition: .15s; position: relative;
 }
+.fab:active { transform: scale(.92); }
+/* Compass: needle shows where north is; hidden while the map already faces north */
+.fab.compass svg { width: 26px; height: 26px; transform: rotate(var(--needle, 0deg)); transition: none; }
+.fab.compass { transition: opacity .25s, transform .25s; }
+.fab.compass.north { opacity: 0; transform: scale(.6); pointer-events: none; }
 .fab svg { width: 22px; height: 22px; }
 .fab.on { background: var(--grad); color: #fff; border-color: transparent; }
 .fab .dot { position: absolute; top: 8px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: var(--ok); border: 2px solid var(--surface); }
@@ -414,7 +421,7 @@ button, a, .leaflet-control { touch-action: manipulation; }
 .bus-marker .pin svg { width: 20px; height: 20px; }
 .bus-marker .arrow {
   position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; pointer-events: none;
-  transition: transform .6s;
+  transform: rotate(var(--h, 0deg)); rotate: var(--map-bearing, 0deg); transition: transform .6s;
 }
 .bus-marker .arrow::before {
   content: ""; position: absolute; left: 50%; top: -1px; margin-left: -6px;

@@ -12,6 +12,7 @@
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://ikta-bus-default-rtdb.firebaseio.com">
   <link rel="preload" as="script" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin>
+  <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js" crossorigin>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" crossorigin>
   <link rel="stylesheet" href="css/app.css">
   <link rel="modulepreload" href="js/passenger.js">
@@ -44,6 +45,7 @@
   <div class="fabs">
     <button class="fab" id="locateBtn" aria-label="Show my location"><i data-icon="locate"></i></button>
     <button class="fab" id="alertBtn" aria-label="10-minute arrival alert"><i data-icon="bell"></i></button>
+    <button class="fab compass north" id="compassBtn" aria-label="Turn map to face north" title="Face north"><i data-icon="compass"></i></button>
   </div>
 
   <aside class="sheet half" id="sheet" aria-label="Find a bus">
@@ -88,6 +90,7 @@
   </nav>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js" crossorigin defer></script>
   <script src="js/map-boot.js" defer></script>
   <script type="module" src="js/passenger.js"></script>
 </body>

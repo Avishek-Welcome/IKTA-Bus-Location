@@ -43,6 +43,7 @@ export const ICONS = {
   arrow: P('<path d="M5 12h14M13 6l6 6-6 6"/>'),
   close: P('<path d="M6 6l12 12M18 6 6 18"/>'),
   crowd: P('<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c.8-3.5 3.2-5 6-5s5.2 1.5 6 5M15 15.2c2.5-.4 4.8.9 6 4.8"/>'),
+  compass: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 15.5 12h-7z" fill="#ef4444"/><path d="M12 21.5 8.5 12h7z" fill="currentColor" opacity=".45"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg>',
   sparkle: P('<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>'),
 };
 export const icon = (name) => ICONS[name] || '';
@@ -326,7 +327,9 @@ export const DEFAULT_VIEW = { lat: 22.6757, lng: 88.4512, zoom: 12 }; // North K
 // Touch-friendly tuning: smooth momentum after a flick, finer pinch-zoom steps,
 // and tiles that keep loading while the finger is still moving.
 // js/map-boot.js repeats these values (it is a classic script and cannot import).
+// rotate/touchRotate are read by the leaflet-rotate plugin (two-finger rotation); without it they are ignored.
 export const MAP_OPTS = {
+  rotate: true, touchRotate: true, rotateControl: false, bearing: 0,
   preferCanvas: true, zoomSnap: 0.25, zoomDelta: 1, bounceAtZoomLimits: false,
   inertia: true, inertiaDeceleration: 2200, inertiaMaxSpeed: 2000, easeLinearity: 0.2,
   tapTolerance: 20, wheelPxPerZoomLevel: 90,
@@ -351,6 +354,134 @@ export function blockPageZoom() {
   document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
 }
 
+// leaflet-rotate starts rotating on the first pixel of a pinch, so every zoom also
+// tilts the map a little. Hold rotation back until the fingers have turned ~15°.
+const ROTATE_THRESHOLD = 15;
+function addRotateThreshold() {
+  const TG = window.L?.Map?.TouchGestures;
+  if (!TG || TG.prototype._iktaPatched) return;
+  const proto = TG.prototype, start = proto._onTouchStart, move = proto._onTouchMove;
+  const angle = (e) => { const a = e.touches[0], b = e.touches[1]; return Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX) * 180 / Math.PI; };
+  proto._onTouchStart = function (e) {
+    start.call(this, e);
+    if (this._rotating) { this._iktaLocked = true; this._iktaAngle0 = angle(e); }
+  };
+  proto._onTouchMove = function (e) {
+    if (this._iktaLocked && e.touches && e.touches.length === 2) {
+      let d = Math.abs(angle(e) - this._iktaAngle0) % 360;
+      if (d > 180) d = 360 - d;
+      if (d < ROTATE_THRESHOLD) {
+        this._rotating = false; move.call(this, e); this._rotating = true;
+        return;
+      }
+      // Unlock: restart the rotation from here so the map doesn't jump by the threshold
+      this._iktaLocked = false;
+      const map = this._map, v = map.mouseEventToContainerPoint(e.touches[0]).subtract(map.mouseEventToContainerPoint(e.touches[1]));
+      this._startTheta = Math.atan(v.x / v.y);
+      this._startBearing = map.getBearing() + (v.y < 0 ? 180 : 0);
+    }
+    move.call(this, e);
+  };
+  proto._iktaPatched = true;
+}
+
+// Rotation support for a map: CSS var --map-bearing (keeps bus heading arrows pointing
+// the right way while markers stay upright) and an optional compass button that shows
+// north and turns the map back to north when tapped.
+export function setupRotation(map, compassBtn) {
+  if (!map.setBearing) { compassBtn?.classList.add('hidden'); return; }
+  // The handler bound its touchstart listener when the map was created, so re-bind it
+  // after patching for the threshold to apply to this map too.
+  const tg = map.touchGestures, on = tg?.enabled();
+  if (on) tg.disable();
+  addRotateThreshold();
+  if (on) tg.enable();
+  const el = map.getContainer();
+  const sync = () => {
+    const b = map.getBearing();
+    el.style.setProperty('--map-bearing', `${b}deg`);
+    if (compassBtn) {
+      compassBtn.style.setProperty('--needle', `${b}deg`);
+      const off = Math.min(b, 360 - b) < 0.5;
+      compassBtn.classList.toggle('north', off);
+      compassBtn.setAttribute('aria-hidden', off);
+      compassBtn.tabIndex = off ? -1 : 0;
+    }
+  };
+  map.on('rotate', sync);
+  sync();
+  compassBtn?.addEventListener('click', () => {
+    let from = map.getBearing(); if (from > 180) from -= 360;
+    const t0 = performance.now(), ms = 350;
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / ms), e = 1 - (1 - k) ** 3;
+      map.setBearing(from * (1 - e));
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+// ---------- Bottom sheet swipe (phones) ----------
+// Three snap states via classes: collapsed (peek) → half → full. The sheet follows the
+// finger and snaps on release: swipe up to expand, down to minimise. A swipe that
+// starts inside the list scrolls the list instead while it is expanded and not at the top.
+const SHEET_ORDER = ['collapsed', 'half', 'full'];
+export const sheetStateOf = (sheet) => (sheet.classList.contains('collapsed') ? 'collapsed' : sheet.classList.contains('half') ? 'half' : 'full');
+export function setSheetState(sheet, st) {
+  sheet.classList.toggle('collapsed', st === 'collapsed');
+  sheet.classList.toggle('half', st === 'half');
+  sheet.dispatchEvent(new CustomEvent('sheetstate', { detail: st }));
+}
+export function sheetSwipe(sheet, { handle = sheet.querySelector('.sheet-handle'), body = sheet.querySelector('.sheet-body') } = {}) {
+  let g = null, swallowClick = false;
+  const translateOf = () => { const m = getComputedStyle(sheet).transform; return m && m !== 'none' ? new DOMMatrixReadOnly(m).m42 : 0; };
+  handle?.addEventListener('click', () => {
+    if (swallowClick) return;
+    setSheetState(sheet, { collapsed: 'half', half: 'full', full: 'collapsed' }[sheetStateOf(sheet)]);
+  });
+  handle?.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handle.click(); } });
+  sheet.addEventListener('touchstart', (e) => {
+    if (innerWidth >= 900 || e.touches.length !== 1) { g = null; return; }
+    const t = e.touches[0];
+    g = { x0: t.clientX, y0: t.clientY, y: t.clientY, t: performance.now(), v: 0, on: false, fromHandle: !!handle?.contains(e.target),
+      inBody: !!body?.contains(e.target), base: translateOf(), st: sheetStateOf(sheet) };
+  }, { passive: true });
+  sheet.addEventListener('touchmove', (e) => {
+    if (!g) return;
+    const t = e.touches[0], dy = t.clientY - g.y0, dx = t.clientX - g.x0, now = performance.now();
+    if (!g.on) {
+      if (Math.abs(dy) < 8 || Math.abs(dy) < Math.abs(dx)) return;
+      const listScrolled = g.inBody && body.scrollTop > 0;
+      const canScrollList = g.inBody && (dy < 0 ? g.st === 'full' : listScrolled);
+      if (!g.fromHandle && canScrollList) { g = null; return; }
+      g.on = true;
+      sheet.style.transition = 'none';
+      document.activeElement?.blur?.();
+    }
+    e.preventDefault();
+    g.v = (t.clientY - g.y) / Math.max(1, now - g.t); g.y = t.clientY; g.t = now;
+    // follow the finger downwards; upwards only a short rubber-band (height grows on snap)
+    const off = dy > 0 ? dy : (g.base > 0 ? Math.max(-g.base, dy) : dy * 0.25);
+    sheet.style.transform = `translateY(${g.base + off}px)`;
+  }, { passive: false });
+  const end = () => {
+    if (!g) return;
+    const { on, y, y0, v, st } = g; g = null;
+    if (!on) return;
+    sheet.style.transition = ''; sheet.style.transform = '';
+    swallowClick = true; setTimeout(() => { swallowClick = false; }, 350);
+    const dy = y - y0, i = SHEET_ORDER.indexOf(st);
+    const fling = Math.abs(v) > 0.45, far = Math.abs(dy) > 260;
+    let next = st;
+    if (dy > 50 || (fling && v > 0)) next = SHEET_ORDER[Math.max(0, i - (far ? 2 : 1))];
+    else if (dy < -40 || (fling && v < 0)) next = SHEET_ORDER[Math.min(2, i + (far ? 2 : 1))];
+    setSheetState(sheet, next);
+  };
+  sheet.addEventListener('touchend', end, { passive: true });
+  sheet.addEventListener('touchcancel', end, { passive: true });
+}
+
 export function createMap(el, { view, zoomControl = false } = {}) {
   const v = view || store.get('ikta_last_view') || DEFAULT_VIEW;
   const map = L.map(el, { ...MAP_OPTS, zoomControl, attributionControl: true })
@@ -370,7 +501,7 @@ export function busIcon(name, color, { stale = false, dim = false, heading = nul
     iconAnchor: [19, 19],
     popupAnchor: [0, -18],
     html: `<div class="bus-marker ${stale ? 'stale' : ''} ${dim ? 'dim' : ''}" style="--c:${color}">
-      ${heading != null ? `<div class="arrow" style="transform:rotate(${Math.round(heading)}deg)"></div>` : ''}
+      ${heading != null ? `<div class="arrow" style="--h:${Math.round(heading)}deg"></div>` : ''}
       <div class="pin">${ICONS.bus}</div><div class="label">${esc(name)}</div></div>`,
   });
 }
