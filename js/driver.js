@@ -13,7 +13,7 @@ const SAVED_KEY = 'ikta_driver_saved';
 let api, user, profile = null, map, busMarker, accCircle;
 let stops = {}, route = null, routeIds = [], dirty = false;
 let watchId = null, wakeLock = null, sending = false, lastSent = 0, lastSentPos = null, sentCount = 0, heartbeat = null;
-let follow = true, lastFix = null, dir = store.get('ikta_driver_dir', 'fwd'), tapMode = false;
+let follow = true, headingUp = store.get('ikta_heading_up', true), lastFix = null, dir = store.get('ikta_driver_dir', 'fwd'), tapMode = false;
 const routeLayerRefs = { line: null, markers: [] };
 let otherStopLayer, routeLayer;
 
@@ -112,6 +112,11 @@ function initMap() {
   mapLangPicker($('#langBtn'));
   // Dragging the map stops auto-follow until the center button is tapped
   map.on('dragstart', () => { follow = false; });
+  // A two-finger twist or the compass button means the driver wants to look around: north-up
+  map.on('userrotate', () => setHeadingUp(false));
+  $('#compassBtn').addEventListener('click', () => setHeadingUp(false));
+  if (headingUp) startCompass();
+  requestAnimationFrame(navLoop);
   setTimeout(() => map.invalidateSize(), 50);
   map.on('click', async (e) => {
     if (!tapMode) return;
@@ -122,6 +127,70 @@ function initMap() {
     e.popup.getElement().querySelector('[data-addstop]')?.addEventListener('click', (ev) => { addToRoute(ev.target.dataset.addstop); map.closePopup(); });
   });
 }
+// ---------- Heading-up navigation ----------
+// The map turns so the bus's direction of travel points to the top of the phone.
+// Direction = GPS course while moving (≥ 5 km/h); when slow or stopped, the phone's
+// compass (assumes the phone faces forward in its holder); smoothed so it doesn't jitter.
+let gpsCourse = null, gpsCourseAt = 0, compassHeading = null, navHeading = null, compassOn = false;
+const angDiff = (a, b) => ((b - a + 540) % 360) - 180;
+function startCompass() {
+  if (compassOn) return;
+  const onOrient = (e) => {
+    let h = e.webkitCompassHeading ?? (e.absolute && e.alpha != null ? 360 - e.alpha : null);
+    if (h == null || isNaN(h)) return;
+    compassHeading = (h + (screen.orientation?.angle || 0) + 360) % 360;
+  };
+  const listen = () => {
+    compassOn = true;
+    if ('ondeviceorientationabsolute' in window) addEventListener('deviceorientationabsolute', onOrient);
+    else addEventListener('deviceorientation', onOrient);
+  };
+  // iOS asks for permission, and only from a tap
+  if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then((r) => { if (r === 'granted') listen(); }).catch(() => {});
+  } else listen();
+}
+function currentHeading() {
+  if (gpsCourse != null && Date.now() - gpsCourseAt < 6000) return gpsCourse;
+  return compassHeading ?? gpsCourse;
+}
+function navLoop() {
+  const target = currentHeading();
+  if (target != null) {
+    navHeading = navHeading == null ? target : (navHeading + angDiff(navHeading, target) * 0.12 + 360) % 360;
+    if (headingUp && map.setBearing && !userMovingMap(map)) {
+      const want = (360 - navHeading) % 360;
+      if (Math.abs(angDiff(map.getBearing(), want)) > 0.2) map.setBearing(want);
+    }
+    // Camera rides with the gliding bus, kept in the upper part of the screen above the panel
+    if (headingUp && follow && busMarker && !userMovingMap(map)) {
+      const sz = map.getSize(), at = map.latLngToContainerPoint(busMarker.getLatLng());
+      const off = at.subtract(L.point(sz.x / 2, sz.y * 0.36));
+      if (Math.abs(off.x) + Math.abs(off.y) > 1) map.panBy(off, { animate: false });
+    }
+    const arrow = busMarker?.getElement()?.querySelector('.arrow');
+    arrow?.style.setProperty('--h', `${navHeading.toFixed(1)}deg`);
+  }
+  requestAnimationFrame(navLoop);
+}
+function setHeadingUp(on) {
+  headingUp = on;
+  store.set('ikta_heading_up', on);
+  $('#navBtn').classList.toggle('on', on);
+  $('#navBtn').setAttribute('aria-pressed', on);
+  if (on) {
+    startCompass();
+    follow = true;
+    if (currentHeading() == null) toast('Direction shows once the bus starts moving');
+  }
+}
+$('#navBtn').addEventListener('click', () => {
+  setHeadingUp(!headingUp);
+  if (!headingUp) $('#compassBtn').click(); // turn back to north
+  toast(headingUp ? '🧭 Travel direction at the top' : 'North at the top');
+});
+$('#navBtn').classList.toggle('on', headingUp);
+
 $('#centerBtn').addEventListener('click', () => { follow = true; if (lastFix) map.flyTo([lastFix.lat, lastFix.lng], 16, { duration: 0.7 }); else toast('Waiting for GPS…'); });
 
 // ---------- Sheet + tabs ----------
@@ -156,21 +225,29 @@ function onFix(p) {
     const x = Math.cos(lastFix.lat * Math.PI / 180) * Math.sin(c.latitude * Math.PI / 180) - Math.sin(lastFix.lat * Math.PI / 180) * Math.cos(c.latitude * Math.PI / 180) * Math.cos((c.longitude - lastFix.lng) * Math.PI / 180);
     heading = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
   }
+  // GPS course is noise below walking pace: keep the last good one while slow or stopped
+  if (heading != null && !isNaN(heading) && (speed || 0) >= 1.4) { gpsCourse = heading; gpsCourseAt = Date.now(); } else heading = null;
   lastFix = { lat: c.latitude, lng: c.longitude, acc: c.accuracy, speed: Math.max(0, speed || 0), heading: heading ?? lastFix?.heading ?? null, t: p.timestamp };
   $('#stSpeed').textContent = Math.round(lastFix.speed * 3.6);
   $('#stAcc').textContent = Math.round(c.accuracy);
   const ll = [lastFix.lat, lastFix.lng];
   if (!busMarker) {
-    busMarker = L.marker(ll, { icon: busIcon(profile.busName, colorFor(profile.busKey), { heading: lastFix.heading }), zIndexOffset: 1000 }).addTo(map);
+    busMarker = L.marker(ll, { icon: myBusIcon(), zIndexOffset: 1000 }).addTo(map);
     accCircle = L.circle(ll, { radius: c.accuracy, weight: 1, color: '#2f5bff', fillOpacity: 0.08, interactive: false }).addTo(map);
     map.setView(ll, 16);
   } else {
     glide(busMarker, lastFix);
-    busMarker.setIcon(busIcon(profile.busName, colorFor(profile.busKey), { heading: lastFix.heading }));
+    if ((busMarker.getElement()?.querySelector('.arrow') == null) !== (currentHeading() == null)) busMarker.setIcon(myBusIcon());
     accCircle.setLatLng(ll).setRadius(c.accuracy);
-    if (sending && follow && !userMovingMap(map)) map.panTo(ll, { animate: true });
+    if (sending && follow && !headingUp && !userMovingMap(map)) map.panTo(ll, { animate: true });
   }
   if (sending) maybeSend();
+}
+// The driver's own bus: bold arrow turned every frame by navLoop (no CSS lag)
+function myBusIcon() {
+  const ic = busIcon(profile.busName, colorFor(profile.busKey), { heading: currentHeading() ?? (navHeading ?? null) });
+  ic.options.html = ic.options.html.replace('class="bus-marker', 'class="bus-marker live me');
+  return ic;
 }
 /** Throttle: send at most every 1.5 s, and only when moved ≥5 m or 10 s passed (heartbeat) */
 function maybeSend(force = false) {
@@ -187,6 +264,7 @@ function maybeSend(force = false) {
 }
 async function startBroadcast() {
   startGeo();
+  if (headingUp) startCompass(); // this tap lets iOS ask for compass access
   sending = true; sentCount = 0;
   $('#bcBtn').classList.add('on'); $('#bcLabel').innerHTML = 'STOP<br>SHARING';
   $('#bcStatus').textContent = 'Live! Passengers and your owner can see this bus.';
