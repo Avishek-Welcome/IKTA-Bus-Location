@@ -612,8 +612,13 @@ button, a, .leaflet-control { touch-action: manipulation; }
   overflow: hidden; text-overflow: ellipsis; padding: 3px 9px; border-radius: 99px; font-size: 11.5px; font-weight: 800;
   background: var(--surface); color: var(--ink); border: 1px solid var(--line); box-shadow: var(--shadow);
 }
-/* Passenger map: just left of the floating buttons (the panel takes the left side on wide screens) */
-.speedo.beside-fabs { left: auto; right: 74px; }
+/* Passenger map: a smaller dial in the bottom-left corner (left/bottom set by passenger.js),
+   bus name beside it rather than under it */
+.speedo.mini { top: auto; width: 64px; height: 64px; }
+.speedo.mini circle { stroke-width: 9; }
+.speedo.mini .num { font-size: 20px; }
+.speedo.mini .read span { font-size: 9px; margin-top: 1px; }
+.speedo.mini .cap { left: calc(100% + 6px); top: 50%; transform: translateY(-50%); font-size: 11px; padding: 2px 8px; }
 /* Owner fleet map: inside the map box, bottom-left (zoom buttons and credits use the top) */
 .speedo.in-map { position: absolute; z-index: 500; top: auto; bottom: 40px; left: 12px; width: 84px; height: 84px; }
 .speedo.in-map .num { font-size: 26px; }
