@@ -482,16 +482,56 @@ export function sheetSwipe(sheet, { handle = sheet.querySelector('.sheet-handle'
   sheet.addEventListener('touchcancel', end, { passive: true });
 }
 
+// ---------- Map language (place names) ----------
+// Vector base map labels use OSM's name:<lang> tags; places without one show their local name.
+export const MAP_LANGS = [
+  ['bn', 'বাংলা', 'অ'], ['hi', 'हिन्दी', 'अ'], ['ta', 'தமிழ்', 'அ'], ['te', 'తెలుగు', 'అ'], ['kn', 'ಕನ್ನಡ', 'ಅ'],
+  ['ml', 'മലയാളം', 'അ'], ['mr', 'मराठी', 'म'], ['gu', 'ગુજરાતી', 'અ'], ['pa', 'ਪੰਜਾਬੀ', 'ਅ'], ['or', 'ଓଡ଼ିଆ', 'ଅ'],
+  ['ur', 'اردو', 'ا'], ['en', 'English', 'A'],
+];
+export function getMapLang() {
+  const saved = store.get('ikta_map_lang');
+  if (saved && MAP_LANGS.some(([c]) => c === saved)) return saved;
+  // Phone set to an Indian language → use it; otherwise Bengali (IKTA runs in Kolkata)
+  const dev = (navigator.languages || [navigator.language || '']).map((l) => String(l).slice(0, 2).toLowerCase());
+  return dev.find((d) => d !== 'en' && MAP_LANGS.some(([c]) => c === d)) || 'bn';
+}
+const langListeners = new Set();
+export function setMapLang(code) {
+  store.set('ikta_map_lang', code);
+  langListeners.forEach((fn) => fn(code));
+}
+// Switch a map from OSM raster tiles to the vector map with local-language names.
+export function upgradeMap(map, raster = map._iktaTiles) {
+  if (map._iktaVector) return;
+  map._iktaVector = true;
+  const go = () => import('./vector-base.js').then(({ addVectorBase }) => {
+    const v = addVectorBase(map, { raster, lang: getMapLang() });
+    if (v) langListeners.add((c) => v.setLanguage(c));
+  }).catch(() => { /* keep raster map */ });
+  if (document.readyState === 'complete') setTimeout(go, 0); else addEventListener('load', () => setTimeout(go, 0), { once: true });
+}
+// A map button with a native language picker inside it.
+export function mapLangPicker(btn) {
+  if (!btn) return;
+  const sel = btn.querySelector('select'), glyph = btn.querySelector('.glyph');
+  sel.innerHTML = MAP_LANGS.map(([c, n]) => `<option value="${c}">${n}</option>`).join('');
+  const show = (c) => { sel.value = c; glyph.textContent = (MAP_LANGS.find(([x]) => x === c) || MAP_LANGS[0])[2]; };
+  show(getMapLang());
+  sel.addEventListener('change', () => { setMapLang(sel.value); show(sel.value); toast(`Map names: ${sel.selectedOptions[0].textContent}`); });
+}
+
 export function createMap(el, { view, zoomControl = false } = {}) {
   const v = view || store.get('ikta_last_view') || DEFAULT_VIEW;
   const map = L.map(el, { ...MAP_OPTS, zoomControl, attributionControl: true })
     .setView([v.lat, v.lng], v.zoom);
-  L.tileLayer(TILE_URL, { ...TILE_OPTS, attribution: TILE_ATTR }).addTo(map);
+  map._iktaTiles = L.tileLayer(TILE_URL, { ...TILE_OPTS, attribution: TILE_ATTR }).addTo(map);
   map.on('moveend', () => {
     const c = map.getCenter();
     store.set('ikta_last_view', { lat: +c.lat.toFixed(5), lng: +c.lng.toFixed(5), zoom: map.getZoom() });
   });
   trackTouch(map);
+  upgradeMap(map);
   return map;
 }
 export function busIcon(name, color, { stale = false, dim = false, heading = null } = {}) {
