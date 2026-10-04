@@ -429,13 +429,16 @@ export function setupRotation(map, compassBtn) {
 // finger and snaps on release: swipe up to expand, down to minimise. A swipe that
 // starts inside the list scrolls the list instead while it is expanded and not at the top.
 const SHEET_ORDER = ['collapsed', 'half', 'full'];
-export const sheetStateOf = (sheet) => (sheet.classList.contains('collapsed') ? 'collapsed' : sheet.classList.contains('half') ? 'half' : 'full');
+export const sheetStateOf = (sheet) => (sheet.classList.contains('away') ? 'hidden' : sheet.classList.contains('collapsed') ? 'collapsed' : sheet.classList.contains('half') ? 'half' : 'full');
+// 'hidden' tucks the panel fully away (pages that allow it show their own button to bring it back)
 export function setSheetState(sheet, st) {
-  sheet.classList.toggle('collapsed', st === 'collapsed');
+  sheet.classList.toggle('away', st === 'hidden');
+  sheet.classList.toggle('collapsed', st === 'collapsed' || st === 'hidden');
   sheet.classList.toggle('half', st === 'half');
   sheet.dispatchEvent(new CustomEvent('sheetstate', { detail: st }));
 }
-export function sheetSwipe(sheet, { handle = sheet.querySelector('.sheet-handle'), body = sheet.querySelector('.sheet-body') } = {}) {
+export function sheetSwipe(sheet, { handle = sheet.querySelector('.sheet-handle'), body = sheet.querySelector('.sheet-body'), hideable = false } = {}) {
+  const order = hideable ? ['hidden', ...SHEET_ORDER] : SHEET_ORDER;
   let g = null, swallowClick = false;
   const translateOf = () => { const m = getComputedStyle(sheet).transform; return m && m !== 'none' ? new DOMMatrixReadOnly(m).m42 : 0; };
   handle?.addEventListener('click', () => {
@@ -473,11 +476,11 @@ export function sheetSwipe(sheet, { handle = sheet.querySelector('.sheet-handle'
     if (!on) return;
     sheet.style.transition = ''; sheet.style.transform = '';
     swallowClick = true; setTimeout(() => { swallowClick = false; }, 350);
-    const dy = y - y0, i = SHEET_ORDER.indexOf(st);
+    const dy = y - y0, i = order.indexOf(st);
     const fling = Math.abs(v) > 0.45, far = Math.abs(dy) > 260;
     let next = st;
-    if (dy > 50 || (fling && v > 0)) next = SHEET_ORDER[Math.max(0, i - (far ? 2 : 1))];
-    else if (dy < -40 || (fling && v < 0)) next = SHEET_ORDER[Math.min(2, i + (far ? 2 : 1))];
+    if (dy > 50 || (fling && v > 0)) next = order[Math.max(0, i - (far ? 2 : 1))];
+    else if (dy < -40 || (fling && v < 0)) next = order[Math.min(order.length - 1, i + (far ? 2 : 1))];
     setSheetState(sheet, next);
   };
   sheet.addEventListener('touchend', end, { passive: true });
