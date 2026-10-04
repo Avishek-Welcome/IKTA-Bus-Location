@@ -1,5 +1,7 @@
 # Temporary: generates and checks the Xcode project for the iPhone kit. Not for merging.
 name: iOS kit check
+permissions:
+  contents: write
 on:
   pull_request:
     paths: ["ios-kit/**", ".github/workflows/ios-kit-check.yml"]
@@ -16,6 +18,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
       - name: Generate
         run: |
           brew install xcodegen
@@ -34,7 +38,13 @@ jobs:
         run: |
           xcodebuild -project IKTABus.xcodeproj -scheme IKTABus -configuration Release -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO build 2>&1 | grep -E "warning:|error:|BUILD" | tail -n 30; test "${PIPESTATUS[0]}" = 0
-      - name: Print the generated project
+      - name: Commit the generated project back to the branch
+        if: matrix.os == 'macos-26'
         run: |
           rm -rf IKTABus.xcodeproj/xcuserdata IKTABus.xcodeproj/project.xcworkspace/xcuserdata
-          tar czf - IKTABus.xcodeproj | base64 | tr -d '\n' | fold -w 4000 | sed 's/^/KITB64 /'
+          git checkout project.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add -f IKTABus.xcodeproj
+          git commit -m "Generated Xcode project for the iPhone kit (XcodeGen $(xcodegen --version | awk '{print $2}'), $(xcodebuild -version | head -1))"
+          git push
