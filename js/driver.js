@@ -12,7 +12,7 @@ wirePasswordToggles();
 const SAVED_KEY = 'ikta_driver_saved';
 let api, user, profile = null, map, busMarker, accCircle;
 let stops = {}, route = null, routeIds = [], dirty = false;
-let watchId = null, wakeLock = null, sending = false, lastSent = 0, lastSentPos = null, sentCount = 0, heartbeat = null;
+let watchId = null, wakeLock = null, sending = false, lastSent = 0, lastSentPos = null, lastSentHeading = null, sentCount = 0, heartbeat = null;
 let follow = true, headingUp = store.get('ikta_heading_up', true), lastFix = null, dir = store.get('ikta_driver_dir', 'fwd'), tapMode = false;
 const routeLayerRefs = { line: null, markers: [] };
 let otherStopLayer, routeLayer;
@@ -131,14 +131,40 @@ function initMap() {
 // The map turns so the bus's direction of travel points to the top of the phone.
 // Direction = GPS course while moving (≥ 5 km/h); when slow or stopped, the phone's
 // compass (assumes the phone faces forward in its holder); smoothed so it doesn't jitter.
-let gpsCourse = null, gpsCourseAt = 0, compassHeading = null, navHeading = null, compassOn = false;
+let gpsCourse = null, gpsCourseAt = 0, compassHeading = null, compassAt = 0, navHeading = null, compassOn = false;
 const angDiff = (a, b) => ((b - a + 540) % 360) - 180;
+const norm = (a) => ((a % 360) + 360) % 360;
+// Compass calibration: while the bus drives fast and straight, learn the offset between the
+// phone's compass and the GPS course. Once it is steady, compass + offset gives the bus's
+// direction instantly (GPS course lags a few seconds on turns), whichever way the phone is mounted.
+const calib = [];
+let compassOffset = null;
+function learnOffset(course, speed) {
+  if (compassHeading == null || Date.now() - compassAt > 1500 || speed < 4) return;
+  calib.push(angDiff(compassHeading, course));
+  if (calib.length > 20) calib.shift();
+  if (calib.length < 6) return;
+  const rad = Math.PI / 180;
+  const mean = Math.atan2(calib.reduce((s, d) => s + Math.sin(d * rad), 0), calib.reduce((s, d) => s + Math.cos(d * rad), 0)) / rad;
+  const spread = Math.max(...calib.map((d) => Math.abs(angDiff(mean, d))));
+  compassOffset = spread < 25 ? mean : null; // phone loose in a hand or pocket → don't trust it
+}
+const calibratedCompass = () => (compassOffset != null && compassHeading != null && Date.now() - compassAt < 1500 ? norm(compassHeading + compassOffset) : null);
+// Direction sent to passengers/owners: calibrated compass while moving, else GPS course.
+// Stopped buses keep their last direction (the phone may be picked up while parked).
+function busHeading() {
+  if ((lastFix?.speed || 0) >= 1 && calibratedCompass() != null) return calibratedCompass();
+  return lastFix?.heading ?? null;
+}
 function startCompass() {
   if (compassOn) return;
   const onOrient = (e) => {
     let h = e.webkitCompassHeading ?? (e.absolute && e.alpha != null ? 360 - e.alpha : null);
     if (h == null || isNaN(h)) return;
-    compassHeading = (h + (screen.orientation?.angle || 0) + 360) % 360;
+    h = norm(h + (screen.orientation?.angle || 0));
+    // light smoothing: compass readings jitter a few degrees
+    compassHeading = compassHeading == null ? h : norm(compassHeading + angDiff(compassHeading, h) * 0.35);
+    compassAt = Date.now();
   };
   const listen = () => {
     compassOn = true;
@@ -151,13 +177,15 @@ function startCompass() {
   } else listen();
 }
 function currentHeading() {
+  const cc = calibratedCompass();
+  if (cc != null) return cc;
   if (gpsCourse != null && Date.now() - gpsCourseAt < 6000) return gpsCourse;
   return compassHeading ?? gpsCourse;
 }
 function navLoop() {
   const target = currentHeading();
   if (target != null) {
-    navHeading = navHeading == null ? target : (navHeading + angDiff(navHeading, target) * 0.12 + 360) % 360;
+    navHeading = navHeading == null ? target : (navHeading + angDiff(navHeading, target) * 0.2 + 360) % 360;
     if (headingUp && map.setBearing && !userMovingMap(map)) {
       const want = (360 - navHeading) % 360;
       if (Math.abs(angDiff(map.getBearing(), want)) > 0.2) map.setBearing(want);
@@ -220,13 +248,13 @@ function onFix(p) {
     const dt = (p.timestamp - lastFix.t) / 1000;
     speed = dt > 0 ? haversine(lastFix, { lat: c.latitude, lng: c.longitude }) / dt : 0;
   }
-  if ((heading == null || isNaN(heading)) && lastFix && haversine(lastFix, { lat: c.latitude, lng: c.longitude }) > 5) {
+  if ((heading == null || isNaN(heading)) && lastFix && haversine(lastFix, { lat: c.latitude, lng: c.longitude }) > 3) {
     const y = Math.sin((c.longitude - lastFix.lng) * Math.PI / 180) * Math.cos(c.latitude * Math.PI / 180);
     const x = Math.cos(lastFix.lat * Math.PI / 180) * Math.sin(c.latitude * Math.PI / 180) - Math.sin(lastFix.lat * Math.PI / 180) * Math.cos(c.latitude * Math.PI / 180) * Math.cos((c.longitude - lastFix.lng) * Math.PI / 180);
     heading = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
   }
   // GPS course is noise below walking pace: keep the last good one while slow or stopped
-  if (heading != null && !isNaN(heading) && (speed || 0) >= 1.4) { gpsCourse = heading; gpsCourseAt = Date.now(); } else heading = null;
+  if (heading != null && !isNaN(heading) && (speed || 0) >= 1.4) { gpsCourse = heading; gpsCourseAt = Date.now(); learnOffset(heading, speed); } else heading = null;
   lastFix = { lat: c.latitude, lng: c.longitude, acc: c.accuracy, speed: Math.max(0, speed || 0), heading: heading ?? lastFix?.heading ?? null, t: p.timestamp };
   $('#stSpeed').textContent = Math.round(lastFix.speed * 3.6);
   $('#stAcc').textContent = Math.round(c.accuracy);
@@ -249,29 +277,32 @@ function myBusIcon() {
   ic.options.html = ic.options.html.replace('class="bus-marker', 'class="bus-marker live me');
   return ic;
 }
-/** Throttle: send at most every 1.5 s, and only when moved ≥5 m or 10 s passed (heartbeat) */
+/** Throttle: send when moved ≥5 m (≤ every 1.5 s), turned ≥8° (≤ every 0.9 s), or every 10 s (heartbeat) */
 function maybeSend(force = false) {
   if (!lastFix || !sending) return;
-  const now = Date.now();
+  const now = Date.now(), heading = busHeading();
   const moved = lastSentPos ? haversine(lastSentPos, lastFix) : Infinity;
-  if (!force && (now - lastSent < 1500 || (moved < 5 && now - lastSent < 10000))) return;
-  lastSent = now; lastSentPos = { ...lastFix };
+  // A turn of 8° or more goes out straight away (at most ~1 per second) so passengers see it
+  const turned = heading != null && (lastSentHeading == null || Math.abs(angDiff(lastSentHeading, heading)) >= 8);
+  const due = (moved >= 5 && now - lastSent >= 1500) || (turned && now - lastSent >= 900) || now - lastSent >= 10000;
+  if (!force && !due) return;
+  lastSent = now; lastSentPos = { ...lastFix }; lastSentHeading = heading;
   api.set(`live/${profile.regKey}`, {
     lat: +lastFix.lat.toFixed(6), lng: +lastFix.lng.toFixed(6), speed: +lastFix.speed.toFixed(1),
-    heading: lastFix.heading != null ? Math.round(lastFix.heading) : null, acc: Math.round(lastFix.acc), ts: now, online: true, dir,
+    heading: heading != null ? Math.round(heading) : null, acc: Math.round(lastFix.acc), ts: now, online: true, dir,
     busName: profile.busName, busKey: profile.busKey, regNo: profile.regNo, driverUid: user.uid, driver: profile.name || profile.userId,
   }).then(() => { sentCount++; $('#stSent').textContent = sentCount; }).catch((e) => toast(friendlyError(e), 'bad'));
 }
 async function startBroadcast() {
   startGeo();
-  if (headingUp) startCompass(); // this tap lets iOS ask for compass access
+  startCompass(); // this tap lets iOS ask for compass access (used for quicker direction)
   sending = true; sentCount = 0;
   $('#bcBtn').classList.add('on'); $('#bcLabel').innerHTML = 'STOP<br>SHARING';
   $('#bcStatus').textContent = 'Live! Passengers and your owner can see this bus.';
   $('#liveBadge').className = 'badge live'; $('#liveBadge').textContent = 'LIVE';
   api.onDisconnectUpdate(`live/${profile.regKey}`, { online: false }).catch(() => {});
   maybeSend(true);
-  heartbeat = setInterval(() => { maybeSend(); $('#stLast').textContent = lastSent ? `${Math.round((Date.now() - lastSent) / 1000)}s` : '—'; }, 1000);
+  heartbeat = setInterval(() => { maybeSend(); $('#stLast').textContent = lastSent ? `${Math.round((Date.now() - lastSent) / 1000)}s` : '—'; }, 500);
   await requestWake();
   toast('📡 Location sharing started', 'ok');
 }

@@ -1,7 +1,7 @@
 // IKTA Bus — Owner console: one-time-code registration, fleet & driver account management, live fleet map.
 import {
   $, $$, esc, boot, toast, icon, modal, confirmBox, setBusy, idToEmail, USER_ID_RE, passwordOk, generatePassword,
-  attachStrength, wirePasswordToggles, friendlyError, keyOf, colorFor, busIcon, createMap, glide, CROWD, timeAgo, LIVE_FRESH_MS,
+  attachStrength, wirePasswordToggles, friendlyError, keyOf, colorFor, busIcon, setBusHeading, createMap, glide, CROWD, timeAgo, LIVE_FRESH_MS,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
 
@@ -359,7 +359,13 @@ function updateFleetMap(forceFit = false) {
     pts.push([l.lat, l.lng]);
     const ic = busIcon(b.busName, colorFor(b.busKey), { heading: l.heading });
     if (!fleetMarkers[reg]) fleetMarkers[reg] = L.marker([l.lat, l.lng], { icon: ic }).addTo(map);
-    else { fleetMarkers[reg].setIcon(ic); glide(fleetMarkers[reg], l); }
+    else {
+      const mk = fleetMarkers[reg], sig = `${l.heading != null}|${b.busName}`;
+      if (mk._sig !== sig) { mk.setIcon(ic); mk._h = null; }
+      mk._sig = sig;
+      setBusHeading(mk, l.heading);
+      glide(mk, l);
+    }
     fleetMarkers[reg].bindPopup(`<b>${esc(b.busName)}</b> <span class="mono">${esc(b.regNo)}</span><br>${esc(b.driverName || 'No driver')} · ${Math.round((l.speed || 0) * 3.6)} km/h`);
   }
   if ((forceFit || !fitted) && pts.length) { map.fitBounds(pts, { padding: [30, 30], maxZoom: 14 }); fitted = true; }

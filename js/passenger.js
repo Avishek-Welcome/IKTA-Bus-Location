@@ -1,7 +1,7 @@
 // IKTA Bus — Passenger (home) page: live map, route search, ETA, alerts, crowd feedback.
 import {
   $, $$, esc, boot, store, toast, icon, haversine, buildPath, projectOnPath, fmtDist, fmtEta, timeAgo,
-  createMap, userMovingMap, setupRotation, upgradeMap, mapLangPicker, mapLangSelect, sheetSwipe, setSheetState, busIcon, meIcon, stopIcon, glide, colorFor, CROWD, LIVE_FRESH_MS, unlockAudio, playAlertTone,
+  createMap, userMovingMap, setupRotation, upgradeMap, mapLangPicker, mapLangSelect, sheetSwipe, setSheetState, busIcon, setBusHeading, meIcon, stopIcon, glide, colorFor, CROWD, LIVE_FRESH_MS, unlockAudio, playAlertTone,
   friendlyError, debounce,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
@@ -412,11 +412,14 @@ function renderMarkers() {
     let mk = markers[reg];
     if (!mk) {
       mk = markers[reg] = L.marker([lv.lat, lv.lng], { icon: ic, zIndexOffset: 800 }).addTo(busLayer);
+      mk._sig = `${dim}|${lv.heading != null}|${b.busName}`;
       mk.on('click', () => focusBus(reg));
     } else {
-      const sig = `${dim}|${lv.heading}|${b.busName}`;
-      if (mk._sig !== sig) mk.setIcon(ic);
+      // Rebuild the icon only when its look changes; direction changes just turn the arrow
+      const sig = `${dim}|${lv.heading != null}|${b.busName}`;
+      if (mk._sig !== sig) { mk.setIcon(ic); mk._h = null; }
       mk._sig = sig;
+      setBusHeading(mk, lv.heading);
       glide(mk, { lat: lv.lat, lng: lv.lng });
     }
     mk.bindPopup(`<b>🚌 ${esc(b.busName)}</b><br><span class="mono">${esc(b.regNo || reg)}</span><br>${userPos ? `${fmtDist(haversine(userPos, lv))} from you · ` : ''}${timeAgo(lv.ts)}`);
