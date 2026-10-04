@@ -1,5 +1,5 @@
 // IKTA Bus — shared UI helpers, geo math and constants (no external deps)
-import './app-bridge.js'; // first, so pages see the Android app's GPS before they ask for it
+import './app-bridge.js'; // first, so pages see the phone app's GPS before they ask for it
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -649,9 +649,17 @@ export function registerSW() {
     addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   }
 }
+// iPhone/iPad browsers have no install button: say once how to add the app to the home screen
+function iosInstallHint() {
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (!ios || navigator.standalone || window.IKTAApp) return;
+  try { if (localStorage.getItem('ikta_ios_hint')) return; localStorage.setItem('ikta_ios_hint', '1'); } catch { return; }
+  setTimeout(() => toast('Install IKTA Bus: tap Share, then "Add to Home Screen".', '', 9000), 2500);
+}
 export function boot() {
   hydrateIcons();
   initTheme();
   registerSW();
+  iosInstallHint();
 }
 export const debounce = (fn, ms = 200) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };

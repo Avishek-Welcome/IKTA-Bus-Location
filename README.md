@@ -128,6 +128,13 @@ passengers/{uid}              coins, lastFeedbackAt, history/{id}, favorites
 
 **Building:** `.github/workflows/android-apk.yml` builds and signs the APK on every push to `main` that changes `android/` (or from *Actions → Android APK → Run workflow*) and puts it on the `android-latest` release. It needs the repo secrets `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD`. Keep the keystore safe and never commit it: Android only installs an update signed with the same key. Locally, `android/build.sh` builds with the Android SDK's build-tools (no Gradle).
 
+## iPhone
+**Install today (no App Store):** open https://ikta-bus.web.app in Safari, tap **Share**, then **Add to Home Screen**, then **Add**. IKTA Bus then opens full screen from its own icon, like an app. iPhones only install apps from the App Store or TestFlight, so there is no downloadable file like the Android APK.
+
+**iPhone app (`ios/`):** a small native app that shows the website full screen, like the Android app, with the phone's own GPS, notifications and screen kept on while a driver shares (through `js/app-bridge.js`). The Xcode project is generated from `ios/project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+
+**Building:** `.github/workflows/ios-app.yml` builds it on a Mac runner on every push to `main` that changes `ios/` (or from *Actions → iOS app → Run workflow*) and puts an unsigned `ikta-bus-unsigned.ipa` on the `ios-latest` release. To send it to TestFlight it needs an Apple Developer Program membership, an app record in App Store Connect for the bundle ID `com.ikta.bus` (or the repo variable `IOS_BUNDLE_ID`), and the repo secrets `APPLE_TEAM_ID`, `APPSTORE_API_KEY_ID`, `APPSTORE_API_ISSUER_ID` and `APPSTORE_API_KEY_P8`. Locally on a Mac: `cd ios && xcodegen generate && open IKTABus.xcodeproj`.
+
 ## Project structure
 
 ```
@@ -143,7 +150,8 @@ js/backend-demo.js          in-browser demo backend
 js/demo-seed.js             demo stops/routes/buses and bus simulator
 js/favs.js                  favourite lists + sync
 sw.js  manifest.webmanifest icons/   PWA
-js/app-bridge.js            GPS/notifications/screen-on from the Android app
+js/app-bridge.js            GPS/notifications/screen-on from the Android and iPhone apps
 android/                    Android app (WebView wrapper) + build.sh
+ios/                        iPhone app (WKWebView wrapper), XcodeGen project.yml
 database.rules.json  firebase.json  scripts/generate-codes.mjs
 ```

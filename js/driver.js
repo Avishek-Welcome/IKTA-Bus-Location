@@ -351,7 +351,7 @@ async function startBroadcast() {
   startCompass(); // this tap lets iOS ask for compass access (the phone's top edge is the bus's head)
   toast('📱 Keep the phone upright in its holder, top edge toward the front of the bus', '', 5000);
   sending = true; sentCount = 0; sentInfo = null;
-  window.IKTAApp?.setSharing(true); // Android app: keep GPS going with the screen off
+  window.IKTAApp?.setSharing(true); // phone apps: keep GPS going (Android: even with the screen off)
   $('#bcBtn').classList.add('on'); $('#bcLabel').innerHTML = 'STOP<br>SHARING';
   $('#bcStatus').textContent = 'Live! Passengers and your owner can see this bus.';
   $('#liveBadge').className = 'badge live'; $('#liveBadge').textContent = 'LIVE';
