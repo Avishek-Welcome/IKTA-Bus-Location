@@ -554,6 +554,16 @@ export function busIcon(name, color, { stale = false, dim = false, heading = nul
       <div class="pin">${ICONS.bus}</div><div class="label">${esc(name)}</div></div>`,
   });
 }
+// Turn a bus marker's arrow to `heading` the short way round (CSS animates it) without
+// rebuilding the marker. Returns false when the marker has no arrow yet (rebuild the icon).
+export function setBusHeading(marker, heading) {
+  const el = marker.getElement()?.querySelector('.arrow');
+  if (heading == null || !el) return false;
+  const prev = marker._h ?? heading;
+  marker._h = prev + (((heading - prev + 540) % 360) - 180);
+  el.style.setProperty('--h', `${marker._h}deg`);
+  return true;
+}
 export function meIcon() { return L.divIcon({ className: '', iconSize: [22, 22], iconAnchor: [11, 11], html: '<div class="me-marker"></div>' }); }
 export function stopIcon(kind = '', label = '') {
   return L.divIcon({

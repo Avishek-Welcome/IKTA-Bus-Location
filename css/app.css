@@ -434,7 +434,7 @@ button, a, .leaflet-control { touch-action: manipulation; }
 .bus-marker .pin svg { width: 20px; height: 20px; }
 .bus-marker .arrow {
   position: absolute; left: 50%; top: 50%; width: 92px; height: 92px; margin: -46px 0 0 -46px; pointer-events: none; z-index: 2;
-  transform: rotate(var(--h, 0deg)); rotate: var(--map-bearing, 0deg); transition: transform .6s;
+  transform: rotate(var(--h, 0deg)); rotate: var(--map-bearing, 0deg); transition: transform .45s cubic-bezier(.2, .8, .3, 1);
 }
 /* Bold travel-direction arrow just ahead of the bus, with a soft beam behind it */
 .bus-marker .arrow::before {
