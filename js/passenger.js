@@ -1,7 +1,7 @@
 // IKTA Bus — Passenger (home) page: live map, route search, ETA, alerts, crowd feedback.
 import {
   $, $$, esc, boot, store, toast, icon, haversine, buildPath, projectOnPath, fmtDist, fmtEta, timeAgo,
-  createMap, busIcon, meIcon, stopIcon, glide, colorFor, CROWD, LIVE_FRESH_MS, unlockAudio, playAlertTone,
+  createMap, userMovingMap, busIcon, meIcon, stopIcon, glide, colorFor, CROWD, LIVE_FRESH_MS, unlockAudio, playAlertTone,
   friendlyError, debounce,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
@@ -430,7 +430,7 @@ function renderMarkers() {
     mk.bindPopup(`<b>🚌 ${esc(b.busName)}</b><br><span class="mono">${esc(b.regNo || reg)}</span><br>${userPos ? `${fmtDist(haversine(userPos, lv))} from you · ` : ''}${timeAgo(lv.ts)}`);
   }
   for (const reg of Object.keys(markers)) if (!active.has(reg)) { busLayer.removeLayer(markers[reg]); delete markers[reg]; }
-  if (focusReg && live[focusReg] && markers[focusReg]) map.panTo([live[focusReg].lat, live[focusReg].lng], { animate: true });
+  if (focusReg && live[focusReg] && markers[focusReg] && !userMovingMap(map)) map.panTo([live[focusReg].lat, live[focusReg].lng], { animate: true });
 }
 function focusBus(reg) {
   focusReg = reg;

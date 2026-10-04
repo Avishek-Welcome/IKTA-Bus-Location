@@ -264,6 +264,10 @@ h1, h2, h3, h4 { margin: 0; letter-spacing: -.02em; }
 :root[data-theme="dark"] #map { background: #0b1220; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #map { background: #0b1220; } }
 .leaflet-container { font-family: var(--font); }
+/* Fingers on the map always move the map: no page scroll/zoom, no long-press text selection or callout */
+#map, #fleetMap, .leaflet-container { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* No double-tap-to-zoom delay on buttons floating over the map */
+button, a, .leaflet-control { touch-action: manipulation; }
 :root[data-theme="dark"] .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6); }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6); }
