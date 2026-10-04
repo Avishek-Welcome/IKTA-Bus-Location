@@ -1,6 +1,6 @@
 // IKTA Bus — Driver console: sign in, live GPS broadcast, route & bus-stop editor.
 import {
-  $, $$, esc, boot, store, toast, icon, haversine, createMap, userMovingMap, blockPageZoom, setupRotation, mapLangPicker, sheetSwipe, busIcon, stopIcon, glide, colorFor, CROWD, timeAgo,
+  $, $$, esc, boot, store, toast, icon, haversine, createMap, userMovingMap, blockPageZoom, setupRotation, mapLangPicker, sheetSwipe, busIcon, stopIcon, glide, kmh, colorFor, CROWD, timeAgo,
   idToEmail, friendlyError, setBusy, promptBox, confirmBox, wirePasswordToggles, fmtDist, debounce,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
@@ -204,6 +204,14 @@ function currentHeading() {
   if (gpsCourse != null && Date.now() - gpsCourseAt < 6000) return gpsCourse;
   return gpsCourse ?? compassHeading;
 }
+// The bus sits in the middle of the map's width, 60% of the way down the part of the
+// map that the panel doesn't cover.
+function busAnchor() {
+  const sz = map.getSize(), top = map.getContainer().getBoundingClientRect().top;
+  const sheetTop = $('#sheet').getBoundingClientRect().top - top;
+  const visible = Math.max(sz.y * 0.35, Math.min(sz.y, sheetTop));
+  return L.point(sz.x / 2, visible * 0.6);
+}
 function navLoop() {
   const target = currentHeading();
   if (target != null) {
@@ -212,14 +220,13 @@ function navLoop() {
       const want = (360 - navHeading) % 360;
       if (Math.abs(angDiff(map.getBearing(), want)) > 0.2) map.setBearing(want);
     }
-    // Camera rides with the gliding bus, kept in the upper part of the screen above the panel
-    if (headingUp && follow && busMarker && !userMovingMap(map)) {
-      const sz = map.getSize(), at = map.latLngToContainerPoint(busMarker.getLatLng());
-      const off = at.subtract(L.point(sz.x / 2, sz.y * 0.36));
-      if (Math.abs(off.x) + Math.abs(off.y) > 1) map.panBy(off, { animate: false });
-    }
     const arrow = busMarker?.getElement()?.querySelector('.arrow');
     arrow?.style.setProperty('--h', `${navHeading.toFixed(1)}deg`);
+  }
+  // Camera rides with the gliding bus, keeping it at its spot on the screen
+  if (follow && busMarker && !userMovingMap(map) && !map._animatingZoom) {
+    const off = map.latLngToContainerPoint(busMarker.getLatLng()).subtract(busAnchor());
+    if (Math.abs(off.x) + Math.abs(off.y) > 1) map.panBy(off, { animate: false });
   }
   requestAnimationFrame(navLoop);
 }
@@ -241,7 +248,8 @@ $('#navBtn').addEventListener('click', () => {
 });
 $('#navBtn').classList.toggle('on', headingUp);
 
-$('#centerBtn').addEventListener('click', () => { follow = true; if (lastFix) map.flyTo([lastFix.lat, lastFix.lng], 16, { duration: 0.7 }); else toast('Waiting for GPS…'); });
+// Following brings the bus back to its spot (navLoop pans there); just zoom to street level
+$('#centerBtn').addEventListener('click', () => { follow = true; if (lastFix) { if (map.getZoom() < 15) map.setZoom(16); } else toast('Waiting for GPS…'); });
 
 // ---------- Sheet + tabs ----------
 const sheet = $('#sheet');
@@ -282,6 +290,7 @@ function onFix(p) {
   if (lastFix && speed > 0.5) speed = lastFix.speed + (speed - lastFix.speed) * 0.6;
   lastFix = { lat: c.latitude, lng: c.longitude, acc: c.accuracy, speed, heading: heading ?? lastFix?.heading ?? null, t: p.timestamp };
   $('#stSpeed').textContent = Math.round(lastFix.speed * 3.6);
+  setSpeedo(lastFix.speed);
   $('#stAcc').textContent = Math.round(c.accuracy);
   const ll = [lastFix.lat, lastFix.lng];
   if (!busMarker) {
@@ -292,9 +301,17 @@ function onFix(p) {
     glide(busMarker, lastFix);
     if ((busMarker.getElement()?.querySelector('.arrow') == null) !== (currentHeading() == null)) busMarker.setIcon(myBusIcon());
     accCircle.setLatLng(ll).setRadius(c.accuracy);
-    if (sending && follow && !headingUp && !userMovingMap(map)) map.panTo(ll, { animate: true });
   }
   if (sending) maybeSend();
+}
+// Round speedometer on the map: the arc fills up to 80 km/h, green → amber → red
+const SPEEDO_MAX = 80;
+function setSpeedo(ms) {
+  const el = $('#speedo'), k = kmh(ms), cls = k < 2 ? 'stopped' : k < 50 ? 'ok' : k < 65 ? 'fast' : 'over';
+  el.classList.remove('hidden');
+  el.className = `speedo ${cls}`;
+  el.querySelector('.val').style.strokeDasharray = `${Math.min(1, k / SPEEDO_MAX) * 0.75} 1`;
+  el.querySelector('.num').textContent = k;
 }
 // The driver's own bus: bold arrow turned every frame by navLoop (no CSS lag)
 function myBusIcon() {
