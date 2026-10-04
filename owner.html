@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>IKTA Bus — Owner</title>
+  <meta name="description" content="IKTA Bus owner console: register with a one-time secret code, manage buses and driver accounts, watch your fleet live.">
+  <meta name="theme-color" content="#2f5bff">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" crossorigin>
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="modulepreload" href="js/owner.js">
+  <link rel="modulepreload" href="js/common.js">
+  <link rel="modulepreload" href="js/api.js">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <script>try{var t=JSON.parse(localStorage.getItem('ikta_theme'));if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="index.html"><img src="icons/icon.svg" alt="" width="34" height="34"><span class="txt">IKTA <b>Bus</b></span></a>
+    <nav class="role-switch" aria-label="Switch account">
+      <a href="index.html"><i data-icon="user"></i><span>Passenger</span></a>
+      <a href="driver.html"><i data-icon="wheel"></i><span>Driver</span></a>
+      <a href="owner.html" class="active" aria-current="page"><i data-icon="briefcase"></i><span>Owner</span></a>
+    </nav>
+    <button class="icon-btn" id="themeBtn" aria-label="Toggle dark mode"></button>
+  </header>
+
+  <!-- ============ Sign in / Register ============ -->
+  <main class="auth-wrap hidden" id="authView">
+    <div class="auth-card">
+      <div class="auth-head">
+        <div class="logo"><i data-icon="briefcase"></i></div>
+        <h1>Bus owner</h1>
+        <p>Manage your buses, drivers and live fleet</p>
+      </div>
+      <div class="card">
+        <div class="tabs" style="margin-bottom:16px">
+          <button class="active" data-auth="login">Sign in</button>
+          <button data-auth="register">Register</button>
+        </div>
+
+        <form id="loginForm" class="stack" autocomplete="on">
+          <label class="field"><span>User ID</span><input class="input" name="userId" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
+          <label class="field"><span>Password</span><div class="input-wrap"><input class="input" type="password" name="password" autocomplete="current-password" required><button type="button" class="addon" data-toggle-pw aria-label="Show password"></button></div></label>
+          <div class="error-text" data-err></div>
+          <button class="btn btn-primary btn-block">Sign in</button>
+          <p class="hint center" id="demoLoginHint"></p>
+        </form>
+
+        <form id="regForm" class="stack hidden" autocomplete="off" novalidate>
+          <label class="field"><span>Secret registration code</span>
+            <div class="input-wrap"><input class="input mono" name="code" maxlength="10" minlength="10" autocapitalize="none" spellcheck="false" placeholder="10-character one-time code" required><button type="button" class="addon" id="checkCodeBtn" aria-label="Check code"><i data-icon="shield"></i></button></div>
+            <p class="hint" id="codeHint">Each code works only once. Get yours from IKTA Bus administration.</p>
+          </label>
+          <label class="field"><span>Full name / Company name</span><input class="input" name="name" autocomplete="name" required></label>
+          <div class="grid-2">
+            <label class="field"><span>User ID</span><input class="input" name="userId" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="4–20 chars" required></label>
+            <label class="field"><span>Phone number</span><input class="input" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+91 98xxxxxxx" required></label>
+          </div>
+          <label class="field"><span>Password</span><div class="input-wrap"><input class="input" type="password" name="password" id="regPw" autocomplete="new-password" required><button type="button" class="addon" data-toggle-pw aria-label="Show password"></button></div>
+            <div class="strength"><i id="regBar"></i></div>
+            <ul class="req-list" id="regReq"><li data-req="len">8+ characters</li><li data-req="upper">Uppercase letter</li><li data-req="lower">Lowercase letter</li><li data-req="digit">Number</li><li data-req="special">Special character</li></ul>
+          </label>
+          <label class="field"><span>Confirm password</span><input class="input" type="password" name="password2" autocomplete="new-password" required></label>
+          <div class="error-text" data-err></div>
+          <button class="btn btn-primary btn-block">Create owner account</button>
+          <p class="hint center" id="demoCodeHint"></p>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <!-- ============ Dashboard ============ -->
+  <main class="page no-nav hidden" id="dashView">
+    <section class="hero">
+      <div class="row" style="position:relative;z-index:1">
+        <div class="avatar" id="ownerAvatar">?</div>
+        <div style="min-width:0">
+          <h1 id="ownerName">Owner</h1>
+          <p id="ownerMeta" style="margin:2px 0 0"></p>
+        </div>
+        <span class="spacer"></span>
+        <button class="icon-btn" id="logoutBtn" aria-label="Sign out" style="background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.3);color:#fff"><i data-icon="logout"></i></button>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><b id="kBuses">0</b><span>Buses</span></div>
+        <div class="kpi"><b id="kDrivers">0</b><span>Drivers</span></div>
+        <div class="kpi"><b id="kLive">0</b><span>Live now</span></div>
+      </div>
+    </section>
+
+    <div class="dash-grid" style="margin-top:16px">
+      <section class="card">
+        <h2><i data-icon="plus" style="width:20px;display:inline-grid"></i> Add a bus</h2>
+        <form id="busForm" class="stack" autocomplete="off">
+          <div class="grid-2">
+            <label class="field"><span>Bus name / number</span><input class="input" name="busName" placeholder="e.g. DN 12" required list="busNames"></label>
+            <label class="field"><span>Registration no.</span><input class="input mono" name="regNo" placeholder="e.g. WB 23A 4567" required style="text-transform:uppercase"></label>
+          </div>
+          <datalist id="busNames"></datalist>
+          <p class="hint" style="margin:0">Buses with the same name (e.g. all <b>DN 12</b>) follow the same route. Each registration number is unique.</p>
+          <div class="error-text" data-err></div>
+          <button class="btn btn-primary btn-block">Add bus</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2><i data-icon="map" style="width:20px;display:inline-grid"></i> Live fleet</h2>
+        <div class="owner-map" id="fleetMap"></div>
+      </section>
+    </div>
+
+    <h2 class="section-title"><i data-icon="bus" style="width:22px;display:inline-grid"></i> My fleet</h2>
+    <div id="fleet"><div class="skeleton"></div></div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin defer></script>
+  <script type="module" src="js/owner.js"></script>
+</body>
+</html>

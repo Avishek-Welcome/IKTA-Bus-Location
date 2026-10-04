@@ -1,249 +1,96 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#12366b">
-<meta name="description" content="IKTA Bus — Where is my bus? Find buses, routes and estimated arrival times.">
-<title>IKTA Bus — Where Is My Bus?</title>
-<link rel="preconnect" href="https://unpkg.com">
-<link rel="preconnect" href="https://tile.openstreetmap.org">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<style>
-:root{--navy:#12366b;--blue:#1769f6;--blue2:#eaf3ff;--ink:#132d57;--muted:#617493;--line:#d8e6f7;--bg:#f3f7fc;--white:#fff;--green:#07986e;--orange:#f07816;--purple:#7138dc;--shadow:0 8px 24px rgba(24,65,119,.08)}
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg)}button,input,select{font:inherit}button{cursor:pointer}.topbar{background:linear-gradient(115deg,#12366b,#244c80);color:white;display:flex;align-items:center;gap:24px;padding:13px clamp(14px,2.3vw,34px);min-height:82px;box-shadow:0 4px 16px #102e5730}.brand{display:flex;align-items:center;gap:10px;font-size:clamp(23px,2.5vw,35px);font-weight:850;white-space:nowrap;letter-spacing:-1px}.brand-icon{display:grid;place-items:center;width:47px;height:47px;border-radius:14px;background:#fff;color:var(--blue);font-size:28px;box-shadow:inset 0 0 0 2px #b6d7ff}.brand span{color:#ffc83d}.brand-divider{height:40px;width:1px;background:#ffffff55}.tagline{font-size:clamp(13px,1.5vw,20px);white-space:nowrap}.roles{margin-left:auto;display:flex;gap:8px}.role{border:1px solid #ffffff1e;background:#ffffff17;color:#fff;border-radius:13px;padding:12px 18px;display:flex;align-items:center;gap:9px;font-weight:650}.role.active{background:var(--blue);box-shadow:0 5px 15px #061d4b55}.role .role-icon{font-size:19px}.top-icon{background:transparent;border:0;color:white;font-size:22px;padding:8px}.layout{display:grid;grid-template-columns:minmax(285px,24%) minmax(360px,1fr) minmax(290px,25%);gap:14px;padding:16px clamp(12px,1.4vw,22px);max-width:1900px;margin:auto}.column{display:flex;flex-direction:column;gap:13px;min-width:0}.panel{background:var(--white);border:1px solid var(--line);border-radius:13px;padding:15px;box-shadow:0 2px 8px #234d7807}.panel h2,.panel h3{margin:0 0 13px;display:flex;align-items:center;gap:9px;letter-spacing:-.3px}.panel h2{font-size:17px}.panel h3{font-size:15px}.section-icon{font-size:20px}.field-label{display:block;font-size:13px;font-weight:750;margin:12px 0 7px}.field{width:100%;min-height:43px;padding:10px 12px;border:1px solid #cbdcf0;border-radius:9px;background:#fff;color:#354b6d;outline:none}.field:focus{border-color:var(--blue);box-shadow:0 0 0 3px #1769f61b}.or{text-align:center;font-size:12px;color:#6980a3;margin:6px}.primary,.secondary,.soft-button{border:0;border-radius:9px;padding:11px 14px;font-weight:750;transition:transform .15s,filter .15s}.primary{background:linear-gradient(100deg,#1972ff,#1764ed);color:#fff;box-shadow:0 5px 12px #1769f622}.secondary{background:#edf4ff;color:#1554bc;border:1px solid #d4e5ff}.soft-button{background:#f2f6fc;color:#2e4e7a;border:1px solid #e0eaf7}.primary:hover,.secondary:hover,.soft-button:hover{filter:brightness(.98);transform:translateY(-1px)}.full{width:100%;margin-top:12px}.bus-list{display:flex;flex-direction:column;gap:9px}.bus-card{display:grid;grid-template-columns:45px minmax(0,1fr) auto 24px;gap:10px;align-items:center;border:1px solid #d4e5f9;border-radius:10px;padding:10px;background:linear-gradient(100deg,#f8fbff,#f3f8ff);cursor:pointer}.bus-card:hover,.bus-card.selected{border-color:#6ba6ff;background:#edf5ff}.bus-symbol{height:42px;width:42px;display:grid;place-items:center;border-radius:50%;color:#fff;font-size:23px;background:var(--bus-color,var(--green))}.bus-name{font-weight:850;font-size:15px}.reg{font-size:12px;color:#637a9d;margin-top:3px}.distance{text-align:right;font-weight:800;font-size:13px;white-space:nowrap}.distance small{display:block;color:#526c93;font-size:12px;font-weight:600;margin-top:4px}.star{font-size:20px;color:#8294b1;background:none;border:0;padding:0}.star.on{color:#ffb600}.map-panel{padding:0;overflow:hidden;position:relative;min-height:670px;isolation:isolate}.map-head{position:absolute;z-index:500;left:12px;right:12px;top:12px;display:flex;gap:10px;pointer-events:none}.map-chip{background:#ffffffed;box-shadow:0 5px 20px #173d6620;border:1px solid #e1eaf4;border-radius:11px;padding:10px 13px;display:flex;align-items:center;gap:10px;font-size:13px;pointer-events:auto;backdrop-filter:blur(8px)}.map-chip strong{font-size:14px}.map-chip .big-icon{font-size:25px;color:var(--blue)}#map{position:absolute;inset:0;min-height:670px;background:#e7f0e8}.map-bottom{position:absolute;bottom:14px;left:14px;z-index:500;background:#ffffffec;padding:9px 12px;border-radius:10px;font-size:12px;box-shadow:var(--shadow)}.map-legend{display:flex;flex-direction:column;gap:7px}.legend-item{display:flex;align-items:center;gap:8px}.dot{width:11px;height:11px;border-radius:50%;background:var(--c)}.alert-panel{background:linear-gradient(110deg,#e3fbfa,#f1ffff);border-color:#a9e7e9}.alert-row{display:flex;align-items:center;gap:10px}.alert-text{font-weight:800;font-size:15px}.subtext{font-size:12px;line-height:1.5;color:#405b7e;margin-top:6px}.toggle{margin-left:auto;width:46px;height:26px;border-radius:20px;border:0;background:#aab8ca;padding:3px;flex-shrink:0}.toggle span{display:block;width:20px;height:20px;background:white;border-radius:50%;transition:transform .2s}.toggle.on{background:var(--blue)}.toggle.on span{transform:translateX(20px)}.tabs{display:flex;gap:4px;background:#f0f5fb;border-radius:9px;padding:4px;margin:8px 0 12px}.tab{flex:1;border:0;background:transparent;border-radius:7px;padding:8px 5px;color:#4a6181;font-size:12px}.tab.active{background:var(--blue);color:#fff;box-shadow:0 3px 7px #1769f622}.fav-item{display:grid;grid-template-columns:34px 1fr 22px;align-items:center;gap:9px;padding:10px 5px;border:1px solid #e1eaf6;border-radius:9px;margin-top:7px}.fav-item .bus-symbol{width:33px;height:33px;font-size:18px}.fav-item strong{font-size:13px}.fav-item .subtext{margin-top:3px}.quick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.quick{border:1px solid #edf2fa;border-radius:10px;background:#f3f7fc;min-height:76px;padding:10px 4px;color:#204d9a;font-size:12px}.quick span{display:block;font-size:21px;margin-bottom:5px}.coin-banner{background:linear-gradient(120deg,#eaf4ff,#f7fbff);display:flex;gap:12px;align-items:center}.coin-circle{width:54px;height:54px;flex-shrink:0;display:grid;place-items:center;background:#d5e8ff;border-radius:50%;font-size:28px}.coin-banner strong{color:#155bd0}.coin-count{font-size:12px;color:#60789a;margin-top:4px}.footer{background:#14366a;color:#dbe9ff;padding:17px 25px;display:flex;gap:14px;align-items:center;justify-content:space-between;font-size:12px;flex-wrap:wrap}.footer strong{font-size:15px;color:#fff}.modal-backdrop{position:fixed;inset:0;z-index:2000;background:#1027479c;display:none;align-items:center;justify-content:center;padding:18px}.modal-backdrop.open{display:flex}.modal{width:min(480px,100%);max-height:90vh;overflow:auto;background:white;border-radius:18px;padding:23px;box-shadow:0 20px 70px #061b3c66}.modal h2{margin:0 0 6px}.modal p{color:#637795;font-size:13px;line-height:1.5}.modal-actions{display:flex;gap:8px;margin-top:18px}.modal-actions>*{flex:1}.close{float:right;border:0;background:#edf3fb;border-radius:50%;height:31px;width:31px;font-size:19px}.notice{padding:10px 12px;background:#fff7df;border:1px solid #ffe6a0;border-radius:9px;color:#72530c;font-size:12px;line-height:1.5;margin-top:12px}.hidden{display:none!important}.empty{font-size:13px;color:#6a7f9e;padding:14px 5px}.toast{position:fixed;z-index:3000;bottom:22px;left:50%;transform:translate(-50%,20px);opacity:0;background:#14366a;color:white;padding:12px 18px;border-radius:12px;box-shadow:var(--shadow);transition:.25s;pointer-events:none;font-size:13px;max-width:90vw;text-align:center}.toast.show{opacity:1;transform:translate(-50%,0)}.pill{display:inline-block;padding:4px 7px;border-radius:7px;background:#e6f6ef;color:#078259;font-size:11px;font-weight:800}.driver-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#607493;margin-top:10px}.status-dot{width:9px;height:9px;background:#aab8ca;border-radius:50%}.status-dot.live{background:#0ca875;box-shadow:0 0 0 4px #0ca87522}.small-link{border:0;background:transparent;color:#1769f6;text-decoration:underline;font-size:12px;padding:0}.crowd-buttons{display:flex;gap:7px;margin-top:10px}.crowd-buttons button{flex:1;padding:9px 4px;font-size:12px}.crowd-buttons button.chosen{background:#dff8eb;border-color:#7cd8af;color:#08764e}.auth-note{font-size:12px;color:#657c9d;margin-top:10px;line-height:1.5}
-@media(max-width:1100px){.layout{grid-template-columns:minmax(270px, .85fr) minmax(330px,1.15fr)}.right-col{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.right-col .coin-banner{grid-column:1/-1}.map-panel,#map{min-height:610px}.tagline{display:none}}
-@media(max-width:700px){.topbar{padding:10px 12px;gap:10px;flex-wrap:wrap}.brand{font-size:24px}.brand-icon{width:38px;height:38px;font-size:22px}.brand-divider{display:none}.roles{width:100%;margin:0;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.role{justify-content:center;padding:9px 4px;font-size:12px;border-radius:10px}.role .role-icon{font-size:16px}.top-icon{margin-left:auto}.layout{display:flex;flex-direction:column;padding:10px;gap:10px}.map-panel{order:0;min-height:410px;height:53vh;max-height:570px}.map-head{left:8px;right:8px;top:8px;gap:6px}.map-chip{padding:8px;font-size:11px;gap:6px}.map-chip strong{font-size:12px}.map-chip .big-icon{font-size:20px}.map-chip:last-child{display:none}#map{min-height:410px}.left-col{order:1}.right-col{order:2;display:flex}.panel{padding:13px}.bus-card{grid-template-columns:42px minmax(0,1fr) auto 22px}.footer{padding:14px;justify-content:center;text-align:center}.footer>div{width:100%}.quick{min-height:70px}.map-bottom{bottom:9px;left:9px}}
-@media(prefers-reduced-motion:reduce){*{transition:none!important}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>IKTA Bus — Live Bus Tracker</title>
+  <meta name="description" content="IKTA Bus: see live buses on your route, how far they are and when they reach your stop. Works on Android and iPhone.">
+  <meta name="theme-color" content="#2f5bff">
+  <!-- Fastest map first paint: open connections to the map library + tile servers before anything else -->
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="preconnect" href="https://a.basemaps.cartocdn.com">
+  <link rel="preconnect" href="https://b.basemaps.cartocdn.com">
+  <link rel="preconnect" href="https://c.basemaps.cartocdn.com">
+  <link rel="preconnect" href="https://d.basemaps.cartocdn.com">
+  <link rel="dns-prefetch" href="https://www.gstatic.com">
+  <link rel="preload" as="script" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" crossorigin>
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="modulepreload" href="js/passenger.js">
+  <link rel="modulepreload" href="js/common.js">
+  <link rel="modulepreload" href="js/api.js">
+  <link rel="modulepreload" href="js/favs.js">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="IKTA Bus">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <script>try{var t=JSON.parse(localStorage.getItem('ikta_theme'));if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
-<body>
-<header class="topbar">
-  <div class="brand"><div class="brand-icon">🚌</div>IKTA <span>Bus</span></div>
-  <div class="brand-divider"></div><div class="tagline">Where Is My Bus?</div>
-  <div class="roles" aria-label="Choose account type">
-    <button class="role active" data-role="passenger"><span class="role-icon">👤</span><span>Passenger</span></button>
-    <button class="role" data-role="driver"><span class="role-icon">◉</span><span>Driver</span></button>
-    <button class="role" data-role="owner"><span class="role-icon">♙</span><span>Owner</span></button>
+<body class="map-page with-nav">
+  <div id="map" role="application" aria-label="Live bus map"></div>
+
+  <header class="topbar">
+    <a class="brand" href="index.html"><img src="icons/icon.svg" alt="" width="34" height="34"><span class="txt">IKTA <b>Bus</b></span></a>
+    <nav class="role-switch" aria-label="Switch account">
+      <a href="index.html" class="active" aria-current="page"><i data-icon="user"></i><span>Passenger</span></a>
+      <a href="driver.html"><i data-icon="wheel"></i><span>Driver</span></a>
+      <a href="owner.html"><i data-icon="briefcase"></i><span>Owner</span></a>
+    </nav>
+    <button class="icon-btn" id="themeBtn" aria-label="Toggle dark mode"></button>
+  </header>
+
+  <div class="fabs">
+    <button class="fab" id="locateBtn" aria-label="Show my location"><i data-icon="locate"></i></button>
+    <button class="fab" id="alertBtn" aria-label="10-minute arrival alert"><i data-icon="bell"></i></button>
   </div>
-  <button class="top-icon" id="notifications" aria-label="Notifications">♧</button>
-</header>
 
-<main class="layout">
-  <section class="column left-col">
-    <div class="panel" id="searchPanel">
-      <h2><span class="section-icon">📍</span> Find a Bus</h2>
-      <label class="field-label" for="source">Source</label>
-      <div style="display:flex;gap:7px"><input class="field" id="source" value="My Current Location" placeholder="Choose a bus stop" list="stops" aria-label="Source bus stop"><button class="secondary" id="useLocation" title="Use my current location">◎</button></div>
-      <div class="or">OR</div>
-      <label class="field-label" for="destination">Destination</label>
-      <input class="field" id="destination" list="stops" placeholder="Select Bus Stop (Destination)" value="Madhyamgram Bus Stop">
-      <datalist id="stops"><option>Barasat Bus Stop</option><option>Madhyamgram Bus Stop</option><option>Airport Gate No. 1</option><option>Dum Dum Station</option><option>New Town Bus Stop</option><option>Chinar Park</option><option>College More</option><option>Birati Bus Stop</option><option>Lake Town</option><option>Esplanade</option></datalist>
-      <label class="field-label" for="busFilter">Preferred bus (optional)</label>
-      <select class="field" id="busFilter"><option value="all">All buses on this route</option><option>DN 12</option><option>DN 8</option><option>L38</option></select>
-      <button class="primary full" id="searchBuses">⌕ &nbsp; Search Buses</button>
-      <div class="auth-note">Choose bus stops to find buses approaching your route. Distances and ETAs in this demo are sample data.</div>
-    </div>
-    <div class="panel">
-      <h2><span class="section-icon">🚍</span> Buses on this route <span class="pill" id="busCount">5</span></h2>
-      <div class="bus-list" id="busList"></div>
-    </div>
-    <div class="panel hidden" id="driverPanel">
-      <h2>🛰️ Driver Location Broadcast</h2>
-      <p class="subtext">Sign in with the driver credentials provided by your bus owner, then start location sharing while driving.</p>
-      <button class="primary full" id="driverLogin">Driver Sign In</button>
-      <button class="secondary full" id="broadcastBtn">Start GPS Broadcast</button>
-      <div class="driver-status"><span class="status-dot" id="driverDot"></span><span id="driverStatus">Not broadcasting</span></div>
-    </div>
-    <div class="panel hidden" id="ownerPanel">
-      <h2>🧑‍💼 Owner Workspace</h2>
-      <p class="subtext">Manage your buses, routes and driver accounts. Owner registration requires a one-time invitation code.</p>
-      <button class="primary full" id="ownerLogin">Owner Sign In</button>
-      <button class="secondary full" id="ownerSignup">Register New Owner</button>
-      <button class="soft-button full" id="manageBuses">Manage Buses & Drivers</button>
-    </div>
-  </section>
+  <aside class="sheet half" id="sheet" aria-label="Find a bus">
+    <div class="sheet-handle" id="sheetHandle" role="button" aria-label="Expand or collapse panel" tabindex="0"></div>
+    <div class="sheet-body" id="sheetBody">
+      <form class="search-box" id="searchForm" autocomplete="off">
+        <div class="search-rail"></div>
+        <div class="loc-field">
+          <span class="loc-dot"></span>
+          <input class="input" id="fromInput" placeholder="From: current location or bus stop" aria-label="Source" enterkeyhint="next">
+        </div>
+        <div class="loc-field" style="position:relative">
+          <span class="loc-dot dest"></span>
+          <input class="input" id="toInput" placeholder="Where to? Type a bus stop" aria-label="Destination bus stop" enterkeyhint="search">
+          <button type="button" class="swap-btn" id="swapBtn" aria-label="Swap source and destination"><i data-icon="swap"></i></button>
+        </div>
+      </form>
 
-  <section class="panel map-panel" aria-label="Live bus map">
-    <div class="map-head">
-      <div class="map-chip"><span class="big-icon">🚌</span><div><div>From: <strong id="mapSource">Barasat Bus Stop</strong></div><div>To: <strong id="mapDestination">Madhyamgram Bus Stop</strong></div></div></div>
-      <div class="map-chip"><span style="font-size:22px">◷</span><div><strong id="mapFound">5 buses found</strong><br><span style="color:#7184a1">on this route</span></div></div>
-    </div>
-    <div id="map" role="application" aria-label="Map showing bus stops and bus locations"></div>
-    <div class="map-bottom"><div class="map-legend"><div class="legend-item"><span class="dot" style="--c:#1769f6"></span> Your location</div><div class="legend-item"><span class="dot" style="--c:#07986e"></span> Live buses (demo)</div><div class="legend-item"><span class="dot" style="--c:#e34b4b"></span> Bus stops</div></div></div>
-  </section>
-
-  <section class="column right-col">
-    <div class="panel alert-panel">
-      <div class="alert-row"><span style="font-size:23px">🔔</span><div><div class="alert-text">10 Minutes Alert</div><div class="subtext">Sound an alert when an approaching bus is about 10 minutes away.</div></div><button class="toggle on" id="alertToggle" aria-label="Toggle arrival alert" aria-pressed="true"><span></span></button></div>
-    </div>
-    <div class="panel">
-      <h2><span class="section-icon">⭐</span> Favourite List <button class="small-link" style="margin-left:auto" id="manageFav">Manage</button></h2>
-      <div class="tabs" id="favTabs"><button class="tab active" data-favtab="all">All</button><button class="tab" data-favtab="buses">Bus Numbers</button><button class="tab" data-favtab="routes">Routes</button></div>
-      <div id="favList"></div>
-      <button class="secondary full" id="saveRoute">＋ Save Current Route</button>
-    </div>
-    <div class="panel">
-      <h2>⚡ Quick Actions</h2>
-      <div class="quick-grid">
-        <button class="quick" id="quickLocation"><span>◎</span>My Location</button>
-        <button class="quick" id="quickFav"><span>⭐</span>Add Favourite</button>
-        <button class="quick" id="quickRoute"><span>↗</span>View Route</button>
-        <button class="quick" id="quickDetails"><span>ⓘ</span>Bus Details</button>
-        <button class="quick" id="quickSettings"><span>⚙</span>Settings</button>
-        <button class="quick" id="quickHelp"><span>?</span>Help</button>
+      <div class="row" style="margin-top:12px">
+        <button class="btn btn-primary" id="searchBtn" style="flex:1"><i data-icon="search"></i> Find buses</button>
+        <button class="btn btn-ghost" id="favRouteBtn" aria-label="Save route to favourites" title="Save route"><i data-icon="star"></i></button>
+        <button class="btn btn-ghost hidden" id="clearBtn" aria-label="Clear search" title="Clear"><i data-icon="close"></i></button>
       </div>
-    </div>
-    <div class="panel">
-      <h3>💬 Passenger Crowd Feedback</h3>
-      <div class="subtext">How crowded is the bus you last saw? One feedback earns 5 demo IKTA Coins.</div>
-      <div class="crowd-buttons"><button class="secondary" data-crowd="Low">🟢 Not crowded</button><button class="secondary" data-crowd="Medium">🟡 Moderate</button><button class="secondary" data-crowd="High">🔴 Crowded</button></div>
-      <div class="coin-count">Your IKTA Coins: <strong id="coinCount">0</strong> 🪙</div>
-    </div>
-    <div class="panel coin-banner"><div class="coin-circle">🚌</div><div><strong>Track · Plan · Travel</strong><div class="subtext">IKTA Bus helps make your journey easier, safer and smarter.</div></div></div>
-  </section>
-</main>
-<footer class="footer"><div><strong>IKTA Bus</strong>　│　Where Is My Bus?</div><div>🔥 Powered by Firebase (integration required)</div><div>Works on mobile & desktop　│　Android　•　iPhone</div></footer>
 
-<div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-  <div class="modal"><button class="close" id="closeModal" aria-label="Close">×</button><h2 id="modalTitle">IKTA Bus</h2><p id="modalIntro"></p><div id="modalBody"></div><div class="modal-actions" id="modalActions"></div></div>
-</div>
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
-<audio id="alertAudio"></audio>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script>
-(() => {
-const $ = id => document.getElementById(id);
-const colors = ['#07986e','#1479ed','#7138dc','#f07816','#e74352'];
-const buses = [
- {id:'b1',name:'DN 12',reg:'WB 23A 4567',km:2.4,min:8,color:colors[0],lat:22.7218,lng:88.4774,route:'Barasat to Madhyamgram',crowd:'Medium'},
- {id:'b2',name:'DN 12',reg:'WB 23A 4589',km:5.8,min:14,color:colors[1],lat:22.7131,lng:88.4761,route:'Barasat to Madhyamgram',crowd:'Low'},
- {id:'b3',name:'L38',reg:'WB 25B 1123',km:7.6,min:18,color:colors[2],lat:22.7016,lng:88.4780,route:'Barasat to New Town',crowd:'High'},
- {id:'b4',name:'DN 8',reg:'WB 19C 7766',km:9.2,min:22,color:colors[3],lat:22.6896,lng:88.4802,route:'Barasat to Dum Dum',crowd:'Medium'},
- {id:'b5',name:'L38',reg:'WB 25B 1188',km:11.7,min:28,color:colors[4],lat:22.6800,lng:88.4834,route:'Barasat to New Town',crowd:'Low'}
-];
-let favourites = [
- {type:'route',name:'DN 12',route:'Barasat to Madhyamgram',km:'2.4 km',min:'8 min',busId:'b1'},
- {type:'route',name:'L38',route:'Barasat to New Town',km:'7.6 km',min:'18 min',busId:'b3'},
- {type:'bus',name:'DN 8',route:'Barasat to Dum Dum',km:'9.2 km',min:'22 min',busId:'b4'}
-];
-let favTab='all', coins=0, selectedBus='b1', alertEnabled=true, driverWatch=null, driverSignedIn=false, currentLat=null,currentLng=null, map=null, markers={}, userMarker=null, routeLine=null, stopMarkers=[];
-const toast = msg => {const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),2800)};
-function showModal(title,intro,body,actions=[]){$('modalTitle').textContent=title;$('modalIntro').textContent=intro;$('modalBody').innerHTML=body;$('modalActions').innerHTML='';actions.forEach(a=>{const b=document.createElement('button');b.className=a.class||'secondary';b.textContent=a.label;b.onclick=()=>a.onClick? a.onClick():closeModal();$('modalActions').appendChild(b)});$('modalBackdrop').classList.add('open')}
-function closeModal(){$('modalBackdrop').classList.remove('open')}
-$('closeModal').onclick=closeModal;$('modalBackdrop').addEventListener('click',e=>{if(e.target===$('modalBackdrop'))closeModal()});
-function safe(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function renderBuses(list=buses){
- $('busList').innerHTML='';
- if(!list.length){$('busList').innerHTML='<div class="empty">No demo buses match this selection. Try another bus or route.</div>'}
- list.forEach(b=>{
- const el=document.createElement('div');el.className='bus-card'+(selectedBus===b.id?' selected':'');el.innerHTML=`<div class="bus-symbol" style="--bus-color:${b.color}">🚍</div><div><div class="bus-name">${safe(b.name)}</div><div class="reg">${safe(b.reg)}</div><div class="subtext">${safe(b.crowd)} crowd</div></div><div class="distance">${b.km.toFixed(1)} km<small>~ ${b.min} min</small></div><button class="star ${favourites.some(f=>f.busId===b.id)?'on':''}" title="Toggle favourite" aria-label="Toggle ${safe(b.name)} favourite">★</button>`;
- el.addEventListener('click',e=>{if(e.target.closest('.star')){e.stopPropagation();toggleBusFav(b);return}selectedBus=b.id;renderBuses(list);showBusPopup(b)});
- $('busList').appendChild(el)
- });
- $('busCount').textContent=list.length;$('mapFound').textContent=list.length+' bus'+(list.length===1?'':'es')+' found';
-}
-function renderFavs(){
- const list=$('favList');list.innerHTML='';
- const filtered=favourites.filter(f=>favTab==='all'||(favTab==='buses'?f.type==='bus':f.type==='route'));
- if(!filtered.length){list.innerHTML='<div class="empty">No favourites here yet. Star a bus or save your route.</div>';return}
- filtered.forEach(f=>{
- const b=buses.find(x=>x.id===f.busId)||buses[0];const item=document.createElement('div');item.className='fav-item';
- item.innerHTML=`<div class="bus-symbol" style="--bus-color:${b.color}">🚍</div><div><strong>${safe(f.name)} ${f.type==='route'?'·':''}</strong><div class="subtext">${safe(f.route)}</div><div class="subtext">${safe(f.km)} · ${safe(f.min)}</div></div><button class="star on" title="Remove favourite">★</button>`;
- item.querySelector('.star').onclick=()=>{favourites=favourites.filter(x=>x!==f);renderFavs();renderBuses();toast('Removed from favourites')};
- item.onclick=e=>{if(e.target.closest('button'))return;selectedBus=f.busId;showBusPopup(b)};
- list.appendChild(item)
- })
-}
-function toggleBusFav(b){
- const existing=favourites.find(f=>f.busId===b.id&&f.type==='bus');
- if(existing){favourites=favourites.filter(f=>f!==existing);toast('Removed from favourites')}
- else{favourites.push({type:'bus',name:b.name,route:b.route,km:b.km.toFixed(1)+' km',min:b.min+' min',busId:b.id});toast('Bus added to favourites')}
- renderFavs();renderBuses()
-}
-function saveRoute(){
- const source=$('source').value.trim()||'My Current Location',dest=$('destination').value.trim();
- if(!dest){toast('Choose a destination bus stop first');$('destination').focus();return}
- const name=($('busFilter').value==='all'?'All buses':$('busFilter').value);
- favourites.push({type:'route',name,route:source+' → '+dest,km:'Saved route',min:'Live ETA varies',busId:selectedBus});
- renderFavs();toast('Route saved to favourites')
-}
-function showBusPopup(b){if(markers[b.id])markers[b.id].openPopup();toast(`${b.name} (${b.reg}) · ${b.km.toFixed(1)} km · about ${b.min} min away`)}
-function initMap(){
- if(!window.L){$('map').innerHTML='<div style="padding:100px 25px;text-align:center">Map library could not load. Check your internet connection.</div>';return}
- map=L.map('map',{zoomControl:false}).setView([22.7165,88.4780],13);
- L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
- L.control.zoom({position:'bottomright'}).addTo(map);
- const stops=[{name:'Barasat Bus Stop',lat:22.7275,lng:88.4778},{name:'Madhyamgram Bus Stop',lat:22.6766,lng:88.4825},{name:'Chinar Park',lat:22.6210,lng:88.4462}];
- stops.forEach(s=>stopMarkers.push(L.circleMarker([s.lat,s.lng],{radius:6,color:'#fff',weight:2,fillColor:'#e34b4b',fillOpacity:1}).addTo(map).bindPopup('<b>'+safe(s.name)+'</b><br>Bus stop')));
- buses.forEach(b=>{
- const icon=L.divIcon({className:'',html:`<div style="background:${b.color};color:white;border:2px solid white;border-radius:50%;width:34px;height:34px;display:grid;place-items:center;box-shadow:0 2px 8px #14366b66;font-size:17px">🚌</div>`,iconSize:[34,34],iconAnchor:[17,17]});
- markers[b.id]=L.marker([b.lat,b.lng],{icon}).addTo(map).bindPopup(`<b>${safe(b.name)}</b><br>${safe(b.reg)}<br>${b.km} km · about ${b.min} min<br>Crowd: ${safe(b.crowd)}`);
- });
- routeLine=L.polyline([[22.7275,88.4778],...buses.slice(0,4).map(b=>[b.lat,b.lng]),[22.6766,88.4825]],{color:'#1972ff',weight:4,opacity:.8,dashArray:'8 8'}).addTo(map);
- L.marker([22.7275,88.4778],{icon:L.divIcon({className:'',html:'<div style="white-space:nowrap;background:#fff;padding:5px 8px;border-radius:7px;border:1px solid #d5e4f7;font-size:11px;font-weight:700;color:#174a9c">Barasat Bus Stop</div>',iconSize:[120,25],iconAnchor:[0,30]})}).addTo(map);
- L.marker([22.6766,88.4825],{icon:L.divIcon({className:'',html:'<div style="white-space:nowrap;background:#fff;padding:5px 8px;border-radius:7px;border:1px solid #d5e4f7;font-size:11px;font-weight:700;color:#174a9c">Madhyamgram Bus Stop</div>',iconSize:[150,25],iconAnchor:[0,0]})}).addTo(map);
- setTimeout(()=>map.invalidateSize(),150)
-}
-function setRole(role){
- document.querySelectorAll('.role').forEach(b=>b.classList.toggle('active',b.dataset.role===role));
- $('driverPanel').classList.toggle('hidden',role!=='driver');$('ownerPanel').classList.toggle('hidden',role!=='owner');
- if(role==='passenger'){toast('Passenger mode — no login required');}
- if(role==='driver')toast('Driver mode selected');
- if(role==='owner')toast('Owner mode selected');
-}
-document.querySelectorAll('.role').forEach(b=>b.onclick=()=>setRole(b.dataset.role));
-document.querySelectorAll('[data-favtab]').forEach(b=>b.onclick=()=>{favTab=b.dataset.favtab;document.querySelectorAll('[data-favtab]').forEach(x=>x.classList.toggle('active',x===b));renderFavs()});
-$('searchBuses').onclick=()=>{
- const dest=$('destination').value.trim();if(!dest){toast('Please select a destination bus stop');$('destination').focus();return}
- $('mapSource').textContent=$('source').value.trim()||'My Current Location';$('mapDestination').textContent=dest;
- const filter=$('busFilter').value;const result=buses.filter(b=>filter==='all'||b.name===filter);
- renderBuses(result);if(map){if(routeLine)routeLine.setStyle({color:'#1972ff'});map.fitBounds(L.latLngBounds([[22.7275,88.4778],...result.map(b=>[b.lat,b.lng]),[22.6766,88.4825]]),{padding:[35,35]})}
- toast(`${result.length} demo buses match your search`)
-};
-$('saveRoute').onclick=saveRoute;$('manageFav').onclick=()=>showModal('Manage Favourites','Remove a saved bus or route using the star buttons in your favourites list.','<p>Your favourites are stored only in this page session in this demo. A production app should save them to a passenger profile or device storage.</p>',[{label:'Got it',class:'primary'}]);
-function useGeo(){
- if(!navigator.geolocation){toast('GPS location is not supported by this browser');return}
- toast('Requesting location permission…');
- navigator.geolocation.getCurrentPosition(pos=>{
- currentLat=pos.coords.latitude;currentLng=pos.coords.longitude;$('source').value=`My Location (${currentLat.toFixed(4)}, ${currentLng.toFixed(4)})`;
- if(map){if(userMarker)map.removeLayer(userMarker);userMarker=L.circleMarker([currentLat,currentLng],{radius:9,color:'#fff',weight:3,fillColor:'#1769f6',fillOpacity:1}).addTo(map).bindPopup('Your current location');map.setView([currentLat,currentLng],14)}
- toast('Your current location updated')
- },err=>toast(err.code===1?'Location permission denied. You can select a bus stop manually.':'Could not get your location. Check GPS and browser permissions.'),{enableHighAccuracy:true,timeout:12000,maximumAge:10000})
-}
-$('useLocation').onclick=useGeo;$('quickLocation').onclick=useGeo;
-$('alertToggle').onclick=()=>{alertEnabled=!alertEnabled;$('alertToggle').classList.toggle('on',alertEnabled);$('alertToggle').setAttribute('aria-pressed',String(alertEnabled));toast(alertEnabled?'10-minute arrival alert enabled':'Arrival alert disabled')};
-function playAlert(){if(!alertEnabled)return;try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const c=new C(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.setValueAtTime(.001,c.currentTime);g.gain.exponentialRampToValueAtTime(.12,c.currentTime+.03);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.35);o.start();o.stop(c.currentTime+.38)}catch(e){}}
-document.querySelectorAll('[data-crowd]').forEach(btn=>btn.onclick=()=>{const b=buses.find(x=>x.id===selectedBus);b.crowd=btn.dataset.crowd;coins+=5;$('coinCount').textContent=coins;document.querySelectorAll('[data-crowd]').forEach(x=>x.classList.toggle('chosen',x===btn));renderBuses();toast('Thanks! +5 IKTA Coins (demo)')});
-$('quickFav').onclick=()=>toggleBusFav(buses.find(b=>b.id===selectedBus)||buses[0]);
-$('quickRoute').onclick=()=>{if(map)map.fitBounds([[22.7275,88.4778],[22.6766,88.4825]],{padding:[30,30]});toast('Showing the demo route')};
-$('quickDetails').onclick=()=>{const b=buses.find(x=>x.id===selectedBus)||buses[0];showModal('Bus Details',`${b.name} · ${b.reg}`,`<p><b>Route:</b> ${safe(b.route)}</p><p><b>Demo distance:</b> ${b.km} km</p><p><b>Estimated arrival:</b> about ${b.min} minutes</p><p><b>Passenger crowd feedback:</b> ${safe(b.crowd)}</p><div class="notice">Bus locations, distances, crowd levels and arrival times shown here are illustrative demo data, not live vehicle telemetry.</div>`,[{label:'Close',class:'primary'}])};
-$('quickSettings').onclick=()=>showModal('Settings','Personalise your IKTA Bus experience.','<label class="field-label">Arrival alert threshold</label><select class="field" id="threshold"><option>5 minutes</option><option selected>10 minutes</option><option>15 minutes</option></select><p class="auth-note">Settings in this prototype reset when you refresh the page.</p>',[{label:'Cancel'},{label:'Save',class:'primary',onClick:()=>{toast('Settings saved for this session');closeModal()}}]);
-$('quickHelp').onclick=()=>showModal('How to use IKTA Bus','Find a bus and estimate when it may reach your stop.','<ol><li>Choose your source and destination bus stops.</li><li>Search buses and select a bus card for details.</li><li>Star a bus or save the route to favourites.</li><li>Enable the arrival alert and allow sound in your browser.</li><li>Passenger crowd feedback adds 5 demo coins.</li></ol><div class="notice">This HTML prototype does not connect to a real bus fleet. Live GPS and secure accounts require Firebase configuration and a trusted backend.</div>',[{label:'Understood',class:'primary'}]);
-$('notifications').onclick=()=>showModal('Notifications','Arrival alerts and updates','<p>10-minute bus arrival alert: '+(alertEnabled?'Enabled':'Disabled')+'</p><p class="auth-note">A real alert while the browser is in the background may require a Progressive Web App, notification permission, and server push messaging.</p>',[{label:'Close',class:'primary'}]);
-$('driverLogin').onclick=()=>showModal('Driver Sign In','Use the credentials issued by your bus owner.','<label class="field-label">Driver user ID</label><input class="field" id="driverUid" placeholder="Enter driver ID"><label class="field-label">Password</label><input class="field" id="driverPwd" type="password" placeholder="Enter password"><div class="notice">Demo only: credentials are not verified. Production authentication must use Firebase Authentication and owner-authorised driver records.</div>',[{label:'Cancel'},{label:'Demo Sign In',class:'primary',onClick:()=>{driverSignedIn=true;closeModal();toast('Demo driver session started');$('driverStatus').textContent='Signed in (demo), not broadcasting';$('driverDot').classList.add('live')}}]);
-$('broadcastBtn').onclick=()=>{
- if(!driverSignedIn){toast('Please sign in as a driver first');return}
- if(driverWatch!==null){navigator.geolocation.clearWatch(driverWatch);driverWatch=null;$('broadcastBtn').textContent='Start GPS Broadcast';$('driverStatus').textContent='Broadcast stopped';$('driverDot').classList.remove('live');toast('GPS broadcast stopped');return}
- if(!navigator.geolocation){toast('GPS is not supported on this device');return}
- driverWatch=navigator.geolocation.watchPosition(pos=>{
- const {latitude,longitude}=pos.coords;
- if(map){const b=buses.find(x=>x.id===selectedBus)||buses[0];if(markers[b.id])markers[b.id].setLatLng([latitude,longitude]).bindPopup('Driver GPS position (local demo)');map.setView([latitude,longitude],15)}
- $('driverStatus').textContent='GPS active on this device · demo only';$('driverDot').classList.add('live')
- },err=>{toast('GPS error. Allow location access and use HTTPS.');navigator.geolocation.clearWatch(driverWatch);driverWatch=null},{enableHighAccuracy:true,maximumAge:2000,timeout:15000});
- $('broadcastBtn').textContent='Stop GPS Broadcast';toast('GPS tracking started on this device. No data is sent to other users in this demo.')
-};
-function ownerSignIn(){showModal('Owner Sign In','Manage your buses and driver accounts.','<label class="field-label">Owner user ID</label><input class="field" id="ownerUid" placeholder="Owner user ID"><label class="field-label">Password</label><input class="field" id="ownerPwd" type="password" placeholder="Password"><div class="notice">Demo form only. Use Firebase Authentication in production; never store passwords as plain text.</div>',[{label:'Cancel'},{label:'Continue (demo)',class:'primary',onClick:()=>{closeModal();toast('Demo only: owner credentials not verified')}}])}
-$('ownerLogin').onclick=ownerSignIn;
-$('ownerSignup').onclick=()=>showModal('Register Owner','A valid one-time invitation code is required.','<label class="field-label">10-character invitation code</label><input class="field" id="inviteCode" class="field" maxlength="10" placeholder="Enter code"><label class="field-label">Owner name</label><input class="field" id="ownerName" placeholder="Full name" class="field"><label class="field-label">User ID</label><input class="field" id="newOwnerUid" placeholder="Choose a user ID" class="field"><label class="field-label">Phone number</label><input class="field" id="ownerPhone" inputmode="tel" placeholder="Phone number" class="field"><label class="field-label">Password</label><input class="field" id="newOwnerPwd" type="password" placeholder="Create a strong password" class="field"><div class="notice">This demo does not validate or consume invitation codes. In production, generate secure one-time codes and redeem them atomically using a trusted backend / Cloud Function.</div>',[{label:'Cancel'},{label:'Demo Submit',class:'primary',onClick:()=>{closeModal();toast('Prototype only: registration not saved')}}]);
-$('manageBuses').onclick=()=>showModal('Manage Buses & Drivers','Owner tools for fleet management','<label class="field-label">Bus name / route number</label><input class="field" id="newBusName" placeholder="e.g. DN 12"><label class="field-label">Vehicle registration number</label><input class="field" id="newBusReg" placeholder="e.g. WB 23A 4567"><label class="field-label">Driver user ID</label><input class="field" id="newDriverId" placeholder="Create driver user ID"><button class="secondary full" id="addBusDemo">Add bus (demo)</button><div class="auth-note">Production records must be saved to Firebase with owner-level security rules. This button only demonstrates the form.</div>',[{label:'Close',class:'primary'}]);
-$('modalBody').addEventListener('click',e=>{if(e.target.id==='addBusDemo')toast('Demo form only — bus not saved to a database')});
-$('source').addEventListener('change',()=>{if($('source').value.trim())$('mapSource').textContent=$('source').value.trim()});
-$('destination').addEventListener('change',()=>{if($('destination').value.trim())$('mapDestination').textContent=$('destination').value.trim()});
-renderBuses();renderFavs();initMap();
-// In a real deployment, arrival notifications must be driven by trusted, timestamped GPS updates.
-// This demo does not simulate a real 10-minute geofence alert or send locations to other users.
-})();
-</script>
+      <div id="routeInfo" class="hidden">
+        <div class="summary" id="summary"></div>
+        <div class="chips" id="busChips" aria-label="Bus numbers on this route"></div>
+      </div>
+      <div class="summary hidden" id="nearHead"></div>
+
+      <div class="bus-list" id="busList">
+        <div class="skeleton"></div><div class="skeleton"></div>
+      </div>
+      <p class="hint center" style="margin-top:14px">Tap 🟢🟡🔴⛔ on a bus to report how crowded it is and earn <b>5 IKTA Coins</b>.</p>
+    </div>
+  </aside>
+
+  <nav class="bottom-nav" aria-label="Passenger">
+    <a href="index.html" class="active" aria-current="page"><i data-icon="map"></i>Live map</a>
+    <a href="favorites.html"><i data-icon="star"></i>Favourites</a>
+    <a href="coins.html"><i data-icon="coin"></i>IKTA Coins</a>
+  </nav>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin defer></script>
+  <script src="js/map-boot.js" defer></script>
+  <script type="module" src="js/passenger.js"></script>
 </body>
 </html>
