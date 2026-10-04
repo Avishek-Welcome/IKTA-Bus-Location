@@ -605,7 +605,17 @@ button, a, .leaflet-control { touch-action: manipulation; }
   backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4);
   box-shadow: var(--shadow); --c: #10b981; pointer-events: none;
 }
-.speedo.hidden { display: none; }
+.speedo.hidden, .speedo .cap.hidden { display: none; }
+.speedo .cap {
+  position: absolute; left: 50%; top: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; max-width: 130px;
+  overflow: hidden; text-overflow: ellipsis; padding: 3px 9px; border-radius: 99px; font-size: 11.5px; font-weight: 800;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line); box-shadow: var(--shadow);
+}
+/* Passenger map: just left of the floating buttons (the panel takes the left side on wide screens) */
+.speedo.beside-fabs { left: auto; right: 74px; }
+/* Owner fleet map: inside the map box, bottom-left (zoom buttons and credits use the top) */
+.speedo.in-map { position: absolute; z-index: 500; top: auto; bottom: 40px; left: 12px; width: 84px; height: 84px; }
+.speedo.in-map .num { font-size: 26px; }
 .speedo svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(135deg); }
 .speedo circle { fill: none; stroke-width: 8; stroke-linecap: round; }
 .speedo .trk { stroke: var(--line); stroke-dasharray: .75 1; }
