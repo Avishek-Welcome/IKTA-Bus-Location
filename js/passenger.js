@@ -2,7 +2,7 @@
 import {
   $, $$, esc, boot, store, toast, icon, haversine, buildPath, projectOnPath, fmtDist, fmtEta, timeAgo,
   createMap, busIcon, meIcon, stopIcon, glide, colorFor, CROWD, LIVE_FRESH_MS, unlockAudio, playAlertTone,
-  isDark, TILE_DARK, TILE_LIGHT, friendlyError, debounce,
+  friendlyError, debounce,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
 import { addFav, removeFav, isFav, attachFavSync } from './favs.js';
@@ -12,7 +12,6 @@ demoBanner();
 
 // ---------- Map (already created by map-boot.js for instant first paint) ----------
 const map = window.__ikta?.map || createMap('map');
-if (window.__ikta?.tiles) document.addEventListener('themechange', () => window.__ikta.tiles.setUrl(isDark() ? TILE_DARK : TILE_LIGHT));
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 const stopLayer = L.layerGroup().addTo(map);
 const routeLayer = L.layerGroup().addTo(map);

@@ -36,7 +36,7 @@ A mobile-first web app (PWA) for live bus tracking. It runs in any modern browse
 
 ## Fast map loading on the home page
 
-- `preconnect` to the Leaflet CDN and all four tile hosts, and `preload` for Leaflet.
+- `preconnect` to the Leaflet CDN and the OpenStreetMap tile server (no API key needed), and `preload` for Leaflet.
 - `js/map-boot.js` creates the map and starts downloading tiles **immediately**, at the last viewed position, before the app modules, the Firebase SDK or a GPS fix are available.
 - The Firebase SDK is loaded **lazily** after the map is visible. The web font loads without blocking rendering.
 - Stops and routes are cached in `localStorage` for instant search on the next visit.

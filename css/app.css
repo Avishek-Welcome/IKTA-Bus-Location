@@ -264,6 +264,10 @@ h1, h2, h3, h4 { margin: 0; letter-spacing: -.02em; }
 :root[data-theme="dark"] #map { background: #0b1220; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #map { background: #0b1220; } }
 .leaflet-container { font-family: var(--font); }
+:root[data-theme="dark"] .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6); }
+}
 .with-nav .leaflet-bottom { bottom: calc(var(--nav-h) + var(--safe-b)); }
 @media (max-width: 899px) { .leaflet-control-zoom { display: none; } .leaflet-bottom.leaflet-right { bottom: auto; top: calc(var(--topbar-h) + var(--safe-t)); } }
 .leaflet-control-attribution { font-size: 10px; background: var(--glass) !important; color: var(--muted); }

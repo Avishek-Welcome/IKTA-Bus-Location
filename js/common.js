@@ -318,19 +318,16 @@ export function playAlertTone() {
 }
 
 // ---------- Leaflet helpers ----------
-export const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-export const TILE_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-export const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+// OpenStreetMap standard tiles: free, no API key. Dark mode is a CSS filter on the tile pane (css/app.css).
+export const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+export const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 export const DEFAULT_VIEW = { lat: 22.6757, lng: 88.4512, zoom: 12 }; // North Kolkata
 
 export function createMap(el, { view, zoomControl = false } = {}) {
   const v = view || store.get('ikta_last_view') || DEFAULT_VIEW;
   const map = L.map(el, { zoomControl, attributionControl: true, preferCanvas: true, zoomSnap: 0.5, tap: true })
     .setView([v.lat, v.lng], v.zoom);
-  let layer = L.tileLayer(isDark() ? TILE_DARK : TILE_LIGHT, {
-    attribution: TILE_ATTR, subdomains: 'abcd', maxZoom: 20, detectRetina: false, updateWhenIdle: false, keepBuffer: 3,
-  }).addTo(map);
-  document.addEventListener('themechange', () => { layer.setUrl(isDark() ? TILE_DARK : TILE_LIGHT); });
+  L.tileLayer(TILE_URL, { attribution: TILE_ATTR, maxZoom: 19, updateWhenIdle: false, keepBuffer: 3 }).addTo(map);
   map.on('moveend', () => {
     const c = map.getCenter();
     store.set('ikta_last_view', { lat: +c.lat.toFixed(5), lng: +c.lng.toFixed(5), zoom: map.getZoom() });

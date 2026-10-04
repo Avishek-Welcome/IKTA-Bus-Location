@@ -1,5 +1,5 @@
 // IKTA Bus service worker — instant repeat loads + offline map shell.
-const VERSION = 'ikta-v2';
+const VERSION = 'ikta-v3';
 const SHELL = [
   './', 'index.html', 'driver.html', 'owner.html', 'favorites.html', 'coins.html', 'admin.html',
   'css/app.css', 'js/map-boot.js', 'js/common.js', 'js/api.js', 'js/favs.js', 'js/firebase-config.js',
@@ -7,7 +7,7 @@ const SHELL = [
   'js/backend-firebase.js', 'js/backend-demo.js', 'js/demo-seed.js',
   'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png',
 ];
-const TILE_CACHE = 'ikta-tiles';
+const TILE_CACHE = 'ikta-tiles-osm';
 const MAX_TILES = 800;
 
 self.addEventListener('install', (e) => {
@@ -32,7 +32,7 @@ self.addEventListener('fetch', (e) => {
   if (/firebaseio\.com|firebasedatabase\.app|googleapis\.com|identitytoolkit|securetoken/.test(url.host)) return;
 
   // Map tiles: cache-first (tiles rarely change) → instant map on repeat visits & offline
-  if (url.host.endsWith('basemaps.cartocdn.com')) {
+  if (url.host === 'tile.openstreetmap.org') {
     e.respondWith(caches.open(TILE_CACHE).then(async (c) => {
       const hit = await c.match(req);
       if (hit) return hit;
