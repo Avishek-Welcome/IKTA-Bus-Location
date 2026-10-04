@@ -34,8 +34,9 @@ let sel = { from: { type: 'gps' }, to: null };
 let matches = [];               // active route matches for the current search
 let busFilter = null;           // busKey chip filter
 let focusReg = null;            // bus being followed
-let selReg = null;              // bus whose speedometer is shown (stays while the map is dragged)
+let selReg = null;              // bus picked for the speedometer (stays while the map is dragged)
 const busSpeedo = speedo(document.body, 'beside-fabs');
+busSpeedo.empty();
 const markers = {};             // reg → Leaflet marker
 const lastAlong = {};           // reg → {along, key} for direction inference
 const alerted = new Set();
@@ -487,10 +488,23 @@ function renderMarkers() {
   paintSpeedo();
   if (focusReg && live[focusReg] && markers[focusReg] && !userMovingMap(map)) map.panTo([live[focusReg].lat, live[focusReg].lng], { animate: true });
 }
+// The speedometer is always on: the picked bus, else the nearest live bus (of the chosen
+// bus number, if one is picked), else an empty dial.
+function speedoBus() {
+  if (selReg && fresh(live[selReg])) return selReg;
+  let best = null, bestScore = Infinity;
+  for (const [reg, lv] of Object.entries(live)) {
+    if (!fresh(lv)) continue;
+    if (busFilter && (buses[reg]?.busKey || lv.busKey) !== busFilter) continue;
+    const score = userPos ? haversine(userPos, lv) : -(lv.ts || 0);
+    if (score < bestScore) { best = reg; bestScore = score; }
+  }
+  return best;
+}
 function paintSpeedo() {
-  const lv = selReg && live[selReg];
-  if (!lv || !fresh(lv)) { busSpeedo.hide(); return; }
-  busSpeedo.set(lv.speed, (buses[selReg] || lv).busName);
+  const reg = speedoBus(), lv = reg && live[reg];
+  if (!lv) { busSpeedo.empty('No live bus'); return; }
+  busSpeedo.set(lv.speed, (buses[reg] || lv).busName);
 }
 function focusBus(reg) {
   focusReg = reg; selReg = reg; paintSpeedo();

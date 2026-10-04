@@ -305,6 +305,7 @@ function onFix(p) {
   if (sending) maybeSend();
 }
 const driverSpeedo = speedo(document.getElementById('appView'));
+driverSpeedo.empty(); // shows -- km/h until the first GPS fix
 // The driver's own bus: bold arrow turned every frame by navLoop (no CSS lag)
 function myBusIcon() {
   const ic = busIcon(profile.busName, colorFor(profile.busKey), { heading: currentHeading() ?? (navHeading ?? null) });
