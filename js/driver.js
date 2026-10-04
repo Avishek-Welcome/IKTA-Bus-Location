@@ -1,6 +1,6 @@
 // IKTA Bus — Driver console: sign in, live GPS broadcast, route & bus-stop editor.
 import {
-  $, $$, esc, boot, store, toast, icon, haversine, createMap, busIcon, stopIcon, glide, colorFor, CROWD, timeAgo,
+  $, $$, esc, boot, store, toast, icon, haversine, createMap, userMovingMap, blockPageZoom, busIcon, stopIcon, glide, colorFor, CROWD, timeAgo,
   idToEmail, friendlyError, setBusy, promptBox, confirmBox, wirePasswordToggles, fmtDist,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
@@ -13,7 +13,7 @@ const SAVED_KEY = 'ikta_driver_saved';
 let api, user, profile = null, map, busMarker, accCircle;
 let stops = {}, route = null, routeIds = [], dirty = false;
 let watchId = null, wakeLock = null, sending = false, lastSent = 0, lastSentPos = null, sentCount = 0, heartbeat = null;
-let lastFix = null, dir = store.get('ikta_driver_dir', 'fwd'), tapMode = false;
+let follow = true, lastFix = null, dir = store.get('ikta_driver_dir', 'fwd'), tapMode = false;
 const routeLayerRefs = { line: null, markers: [] };
 let otherStopLayer, routeLayer;
 
@@ -107,6 +107,9 @@ function initMap() {
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   otherStopLayer = L.layerGroup().addTo(map);
   routeLayer = L.layerGroup().addTo(map);
+  blockPageZoom();
+  // Dragging the map stops auto-follow until the center button is tapped
+  map.on('dragstart', () => { follow = false; });
   setTimeout(() => map.invalidateSize(), 50);
   map.on('click', async (e) => {
     if (!tapMode) return;
@@ -117,7 +120,7 @@ function initMap() {
     e.popup.getElement().querySelector('[data-addstop]')?.addEventListener('click', (ev) => { addToRoute(ev.target.dataset.addstop); map.closePopup(); });
   });
 }
-$('#centerBtn').addEventListener('click', () => { if (lastFix) map.flyTo([lastFix.lat, lastFix.lng], 16, { duration: 0.7 }); else toast('Waiting for GPS…'); });
+$('#centerBtn').addEventListener('click', () => { follow = true; if (lastFix) map.flyTo([lastFix.lat, lastFix.lng], 16, { duration: 0.7 }); else toast('Waiting for GPS…'); });
 
 // ---------- Sheet + tabs ----------
 const sheet = $('#sheet');
@@ -166,7 +169,7 @@ function onFix(p) {
     glide(busMarker, lastFix);
     busMarker.setIcon(busIcon(profile.busName, colorFor(profile.busKey), { heading: lastFix.heading }));
     accCircle.setLatLng(ll).setRadius(c.accuracy);
-    if (sending) map.panTo(ll, { animate: true });
+    if (sending && follow && !userMovingMap(map)) map.panTo(ll, { animate: true });
   }
   if (sending) maybeSend();
 }

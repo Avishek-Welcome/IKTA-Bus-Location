@@ -323,15 +323,44 @@ export const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 export const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 export const DEFAULT_VIEW = { lat: 22.6757, lng: 88.4512, zoom: 12 }; // North Kolkata
 
+// Touch-friendly tuning: smooth momentum after a flick, finer pinch-zoom steps,
+// and tiles that keep loading while the finger is still moving.
+// js/map-boot.js repeats these values (it is a classic script and cannot import).
+export const MAP_OPTS = {
+  preferCanvas: true, zoomSnap: 0.25, zoomDelta: 1, bounceAtZoomLimits: false,
+  inertia: true, inertiaDeceleration: 2200, inertiaMaxSpeed: 2000, easeLinearity: 0.2,
+  tapTolerance: 20, wheelPxPerZoomLevel: 90,
+};
+export const TILE_OPTS = { maxZoom: 19, updateWhenIdle: false, updateWhenZooming: false, keepBuffer: 4 };
+
+// Sets map._iktaTouching while fingers are on the map, so code that recenters the
+// map on GPS updates can wait instead of yanking it away mid-gesture.
+export function trackTouch(map) {
+  const el = map.getContainer();
+  const on = () => { map._iktaTouching = true; };
+  const off = (e) => { if (!e.touches || !e.touches.length) map._iktaTouching = false; };
+  el.addEventListener('touchstart', on, { passive: true });
+  el.addEventListener('touchend', off, { passive: true });
+  el.addEventListener('touchcancel', off, { passive: true });
+}
+export const userMovingMap = (map) => !!(map._iktaTouching || map._animatingZoom);
+
+// iOS Safari ignores user-scalable=no, so a pinch that starts on a floating button
+// zooms the whole page; full-screen map pages block that page zoom.
+export function blockPageZoom() {
+  document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+}
+
 export function createMap(el, { view, zoomControl = false } = {}) {
   const v = view || store.get('ikta_last_view') || DEFAULT_VIEW;
-  const map = L.map(el, { zoomControl, attributionControl: true, preferCanvas: true, zoomSnap: 0.5, tap: true })
+  const map = L.map(el, { ...MAP_OPTS, zoomControl, attributionControl: true })
     .setView([v.lat, v.lng], v.zoom);
-  L.tileLayer(TILE_URL, { attribution: TILE_ATTR, maxZoom: 19, updateWhenIdle: false, keepBuffer: 3 }).addTo(map);
+  L.tileLayer(TILE_URL, { ...TILE_OPTS, attribution: TILE_ATTR }).addTo(map);
   map.on('moveend', () => {
     const c = map.getCenter();
     store.set('ikta_last_view', { lat: +c.lat.toFixed(5), lng: +c.lng.toFixed(5), zoom: map.getZoom() });
   });
+  trackTouch(map);
   return map;
 }
 export function busIcon(name, color, { stale = false, dim = false, heading = null } = {}) {
