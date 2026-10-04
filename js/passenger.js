@@ -25,6 +25,8 @@ const busLayer = L.layerGroup().addTo(map);
 // ---------- State ----------
 const AVG_SPEED = 5.5;          // m/s (~20 km/h) fallback for city buses
 const ALERT_SEC = 10 * 60;      // alert when bus is ≤ 10 minutes away
+const MIN_SPEED = 3.3, MAX_SPEED = 16.7; // m/s: estimates assume 12–60 km/h on the road
+const DWELL_SEC = 20;           // typical halt at each bus stop on the way
 let api = null;
 let stops = store.get('ikta_cache_stops', {}) || {};
 let routes = store.get('ikta_cache_routes', {}) || {};
@@ -292,22 +294,67 @@ function drawRoutes(fit) {
   }
 }
 
-/** Evaluate one live bus against one route match → ETA to the passenger's boarding stop */
-function evaluate(m, reg, lv) {
-  const p = projectOnPath(m.path, lv);
-  const prev = lastAlong[reg];
+// ---------- Travel-time estimates ----------
+// Minutes = road distance left along the bus's route ÷ the bus's recent moving speed
+// (smoothed, kept within 12–60 km/h; ~20 km/h until it has moved) + a short halt at each stop on the way.
+const speedAvg = {};            // reg → { v: smoothed moving speed (m/s), ts }
+function busSpeed(reg, lv) {
+  const s = speedAvg[reg];
+  if (lv.speed > 1.5 && s?.ts !== lv.ts) speedAvg[reg] = { v: s ? s.v * 0.75 + lv.speed * 0.25 : lv.speed, ts: lv.ts };
+  return Math.min(MAX_SPEED, Math.max(MIN_SPEED, speedAvg[reg]?.v ?? AVG_SPEED));
+}
+/** Seconds for a bus at `from` (metres along `path`) to reach `to`, moving in `dir`; null once passed */
+function travelSec(path, from, to, dir, reg, lv) {
+  const dist = (to - from) * dir;
+  if (dist < -60) return null;
+  const halts = path.stopAlong.filter((a) => (a - from) * dir > 40 && (to - a) * dir > 40).length;
+  return Math.max(0, dist) / busSpeed(reg, lv) + halts * DWELL_SEC;
+}
+/** Where a bus is on a route and which way it is going (driver's setting, else its movement) */
+function track(reg, key, path, lv, fallbackDir) {
+  const p = projectOnPath(path, lv);
+  const prev = lastAlong[reg]?.key === key ? lastAlong[reg] : null;
   let dir = lv.dir === 'fwd' ? 1 : lv.dir === 'rev' ? -1 : 0;
-  if (!dir && prev && prev.key === m.key && Math.abs(p.along - prev.along) > 15) dir = Math.sign(p.along - prev.along);
-  if (!dir) dir = prev?.dir || m.dir;
-  lastAlong[reg] = { along: p.along, key: m.key, dir };
-  if (dir !== m.dir) return { opposite: true };
-  const remaining = (m.refAlong - p.along) * m.dir;
+  if (!dir && prev && Math.abs(p.along - prev.along) > 15) dir = Math.sign(p.along - prev.along);
+  if (!dir) dir = prev?.dir || fallbackDir;
+  lastAlong[reg] = { along: p.along, key, dir };
+  return { along: p.along, offset: p.offset, dir };
+}
+const pathCache = new WeakMap();
+function pathOf(r) { let p = pathCache.get(r); if (!p) { p = routePath(r, stops); pathCache.set(r, p); } return p; }
+const clock = (sec) => new Date(Date.now() + sec * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+const mins = (sec) => `~${fmtEta(sec)} min`;
+
+/** Evaluate one live bus against one route match → minutes to the boarding stop and to the destination */
+function evaluate(m, reg, lv) {
+  const t = track(reg, m.key, m.path, lv, m.dir);
+  if (t.dir !== m.dir) return { opposite: true };
+  const remaining = (m.refAlong - t.along) * m.dir;
   const passed = remaining < -60;
-  const speed = Math.min(22, lv.speed > 1.5 ? lv.speed : AVG_SPEED);
-  const eta = passed ? null : Math.max(0, remaining) / speed;
+  const eta = passed ? null : travelSec(m.path, t.along, m.refAlong, m.dir, reg, lv);
+  const destEta = travelSec(m.path, t.along, m.path.stopAlong[m.j], m.dir, reg, lv);
   const span = m.dir > 0 ? m.refAlong : m.path.length - m.refAlong;
   const progress = passed ? 1 : Math.max(0.03, Math.min(1, 1 - remaining / Math.max(span, 1)));
-  return { reg, remaining, passed, eta, progress, offRoute: p.offset > 700, stopName: stops[m.stopId]?.name || 'your stop', live: lv.speed > 1.5 };
+  return {
+    reg, remaining, passed, eta, destEta, progress, offRoute: t.offset > 700, live: lv.speed > 1.5,
+    stopName: stops[m.stopId]?.name || 'your stop', destName: stops[m.ids[m.j]]?.name || 'your destination',
+  };
+}
+/** No destination chosen: minutes for a bus to reach the stop on its route nearest to the passenger */
+function towardsYou(reg, lv, key) {
+  const r = routes[key];
+  if (!r || !userPos) return null;
+  const path = pathOf(r);
+  if (path.ids.length < 2) return null;
+  let k = -1, best = Infinity;
+  path.ids.forEach((id, i) => { const d = haversine(userPos, stops[id]); if (d < best) { best = d; k = i; } });
+  if (best > 3000) return null; // this route doesn't come near you
+  const target = path.stopAlong[k];
+  const t = track(reg, key, path, lv, 0);
+  if (t.offset > 700) return null;
+  const dir = t.dir || Math.sign(target - t.along) || 1;
+  const eta = travelSec(path, t.along, target, dir, reg, lv);
+  return { eta, away: eta == null, stopName: stops[path.ids[k]].name, remaining: Math.max(0, (target - t.along) * dir), guessed: !t.dir };
 }
 
 // ---------- Rendering ----------
@@ -331,10 +378,17 @@ function busCard(b, reg, ev, extra = '') {
   const favItem = { type: 'bus', busKey: b.busKey, busName: b.busName, title: `Bus ${b.busName}` };
   const fav = isFav(favItem);
   const soon = ev && !ev.passed && ev.eta <= ALERT_SEC;
+  const ty = ev ? null : towardsYou(reg, lv, b.busKey || lv.busKey);
   const right = ev
     ? (ev.passed ? '<div class="eta"><b style="font-size:15px">Passed</b><span>your stop</span></div>'
-      : `<div class="eta ${soon ? 'soon' : ''}"><b>${fmtEta(ev.eta)}</b><span>min · ${fmtDist(Math.max(0, ev.remaining))}</span></div>`)
-    : `<div class="eta"><b style="font-size:17px">${fmtDist(userPos ? haversine(userPos, lv) : null)}</b><span>from you</span></div>`;
+      : `<div class="eta ${soon ? 'soon' : ''}"><b>${mins(ev.eta)}</b><span>to ${esc(ev.stopName)} · ${fmtDist(Math.max(0, ev.remaining))}</span></div>`)
+    : ty && !ty.away
+      ? `<div class="eta ${ty.eta <= ALERT_SEC ? 'soon' : ''}"><b>${mins(ty.eta)}</b><span>to ${esc(ty.stopName)} · ${fmtDist(ty.remaining)}</span></div>`
+      : `<div class="eta"><b style="font-size:17px">${fmtDist(userPos ? haversine(userPos, lv) : null)}</b><span>${ty?.away ? 'from you · going away' : 'from you'}</span></div>`;
+  // Picked bus: both times spelled out, with clock times
+  const times = ev && ev.destEta != null
+    ? `<div class="eta-line">${ev.passed ? '' : `🚏 <b>${mins(ev.eta)}</b> to ${esc(ev.stopName)} (${clock(ev.eta)}) · `}🏁 <b>${mins(ev.destEta)}</b> to ${esc(ev.destName)} (${clock(ev.destEta)})</div>`
+    : ty && !ty.away && focusReg === reg ? `<div class="eta-line">🚏 <b>${mins(ty.eta)}</b> to ${esc(ty.stopName)}, near you (${clock(ty.eta)})</div>` : '';
   return `<article class="bus-card ${ev?.passed ? 'passed' : ''} ${focusReg === reg ? 'focus' : ''} ${extra}" data-reg="${esc(reg)}">
     <div class="bus-top">
       <div class="bus-avatar" style="--c:${color}">${esc(b.busName)}</div>
@@ -344,6 +398,7 @@ function busCard(b, reg, ev, extra = '') {
       </div>
       ${right}
     </div>
+    ${times}
     ${ev && !ev.passed ? `<div class="progress" title="Progress towards ${esc(ev.stopName)}"><i style="width:${(ev.progress * 100).toFixed(0)}%"></i></div>` : ''}
     <div class="bus-meta">
       <span class="badge live">Live · ${timeAgo(lv.ts)}</span>
@@ -521,7 +576,7 @@ function paintSpeedo() {
   busSpeedo.set(lv.speed, (buses[reg] || lv).busName);
 }
 function focusBus(reg) {
-  focusReg = reg; selReg = reg; paintSpeedo();
+  focusReg = reg; selReg = reg; paintSpeedo(); scheduleRender();
   const lv = live[reg];
   if (lv) map.flyTo([lv.lat, lv.lng], Math.max(map.getZoom(), 15), { duration: 0.7 });
   markers[reg]?.openPopup();
