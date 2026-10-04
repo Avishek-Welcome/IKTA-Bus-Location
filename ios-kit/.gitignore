@@ -1,0 +1,14 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcarchive
+*.ipa
+# Signing and App Store keys: never commit
+*.p8
+*.p12
+*.cer
+*.mobileprovision
+*.provisionprofile
+.DS_Store

@@ -1,0 +1,40 @@
+# Temporary: generates and checks the Xcode project for the iPhone kit. Not for merging.
+name: iOS kit check
+on:
+  pull_request:
+    paths: ["ios-kit/**", ".github/workflows/ios-kit-check.yml"]
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ios-kit
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate
+        run: |
+          brew install xcodegen
+          xcodegen --version
+          xcodebuild -version
+          xcodegen generate
+          rm project.yml
+          grep -c PBXFileSystemSynchronizedRootGroup IKTABus.xcodeproj/project.pbxproj || true
+          grep objectVersion IKTABus.xcodeproj/project.pbxproj
+      - name: Build for simulator and run tests
+        run: |
+          SIM=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')))")
+          echo "simulator $SIM"
+          xcodebuild -project IKTABus.xcodeproj -scheme IKTABus -destination "id=$SIM" test 2>&1 | tail -n 40; test "${PIPESTATUS[0]}" = 0
+      - name: Build for a device (unsigned)
+        run: |
+          xcodebuild -project IKTABus.xcodeproj -scheme IKTABus -configuration Release -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | grep -E "warning:|error:|BUILD" | tail -n 30; test "${PIPESTATUS[0]}" = 0
+      - name: Print the generated project
+        run: |
+          rm -rf IKTABus.xcodeproj/xcuserdata IKTABus.xcodeproj/project.xcworkspace/xcuserdata
+          tar czf - IKTABus.xcodeproj | base64 | tr -d '\n' | fold -w 4000 | sed 's/^/KITB64 /'

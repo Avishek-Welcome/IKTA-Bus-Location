@@ -1,0 +1,51 @@
+# Used once to generate IKTABus.xcodeproj for this kit (not needed afterwards).
+name: IKTABus
+options:
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+targets:
+  IKTABus:
+    type: application
+    platform: iOS
+    sources:
+      - path: IKTABus
+        type: syncedFolder
+      - path: Config
+        buildPhase: none
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ikta.bus
+        PRODUCT_NAME: IKTABus
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+        INFOPLIST_FILE: Config/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+  IKTABusTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: IKTABusTests
+        type: syncedFolder
+    dependencies:
+      - target: IKTABus
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ikta.bus.tests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Automatic
+schemes:
+  IKTABus:
+    build:
+      targets:
+        IKTABus: all
+        IKTABusTests: [test]
+    test:
+      targets: [IKTABusTests]

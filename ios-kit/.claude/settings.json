@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/*.p8)",
+      "Read(**/*.p12)",
+      "Read(**/*.cer)",
+      "Read(**/*.mobileprovision)",
+      "Read(**/AuthKey_*)"
+    ]
+  }
+}
