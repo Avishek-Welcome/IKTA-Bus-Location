@@ -79,6 +79,10 @@ Open `driver.html` in one tab and `index.html` in another to watch your own broa
    - Sign in at `admin.html` and press *Generate*, or
    - Run `node scripts/generate-codes.mjs 20 > codes.json` and import that file at `/secretCodes` while the node is still empty.
 6. Deploy as static files, either with `firebase deploy --only hosting` (uses `firebase.json`) or with the included GitHub Pages workflow.
+   - **Automatic Firebase deploys:** `.github/workflows/firebase-hosting.yml` deploys every push to `main` to https://ikta-bus.web.app. Turn it on once:
+     1. In the Firebase console, open *Project settings → Service accounts* and press **Generate new private key**. A `.json` file downloads.
+     2. On GitHub, open the repo's *Settings → Secrets and variables → Actions*, press **New repository secret**, name it `FIREBASE_SERVICE_ACCOUNT`, and paste the whole contents of that file.
+     3. Under *Actions → Deploy to Firebase Hosting*, press **Run workflow**, or push to `main`. Delete the downloaded key file afterwards.
 
 ### Data model (Realtime Database)
 
