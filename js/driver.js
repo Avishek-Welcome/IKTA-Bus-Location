@@ -1,9 +1,10 @@
 // IKTA Bus — Driver console: sign in, live GPS broadcast, route & bus-stop editor.
 import {
   $, $$, esc, boot, store, toast, icon, haversine, createMap, userMovingMap, blockPageZoom, setupRotation, mapLangPicker, sheetSwipe, busIcon, stopIcon, glide, colorFor, CROWD, timeAgo,
-  idToEmail, friendlyError, setBusy, promptBox, confirmBox, wirePasswordToggles, fmtDist,
+  idToEmail, friendlyError, setBusy, promptBox, confirmBox, wirePasswordToggles, fmtDist, debounce,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
+import { searchPlaces, measureRoad, stopsSig, decodePolyline } from './road.js';
 
 boot();
 demoBanner();
@@ -344,6 +345,51 @@ $('#dirTabs').addEventListener('click', (e) => {
 
 // ---------- Route editor ----------
 function loadRouteIds() { routeIds = (route?.stops || []).filter((id) => stops[id]); paintDir(); renderStopList(); }
+
+// ---------- Road distance ----------
+// The route is measured along the roads through every stop in order (never straight lines).
+// The measurement is saved with the route, so passengers' phones don't have to repeat it.
+const roads = new Map(); // stop signature → { status: 'busy' | 'ok' | 'fail', road }
+function roadNow() {
+  const sig = stopsSig(routeIds);
+  if (route?.road?.sig === sig && route.road.poly) return { status: 'ok', road: route.road };
+  return roads.get(sig) || null;
+}
+const measureSoon = (() => { let t; return () => { clearTimeout(t); t = setTimeout(measureNow, 600); }; })();
+function measureNow() {
+  if (routeIds.length < 2) return Promise.resolve(null);
+  const have = roadNow();
+  if (have?.status === 'busy') return have.p;
+  if (have?.status === 'ok') return Promise.resolve(have);
+  const ids = [...routeIds], sig = stopsSig(ids);
+  const p = measure(ids, sig);
+  roads.set(sig, { status: 'busy', p }); paintRoad();
+  return p;
+}
+async function measure(ids, sig) {
+  try {
+    const r = await measureRoad(ids.map((id) => stops[id]));
+    roads.set(sig, { status: 'ok', road: { ...r, sig } });
+    // An already-saved route without a road measurement gets one now (e.g. routes made before this)
+    if (!dirty && route && stopsSig((route.stops || []).filter((id) => stops[id])) === sig && route.road?.sig !== sig) {
+      api.set(`routes/${profile.busKey}/road`, { ...r, sig }).catch(() => {});
+    }
+  } catch (e) {
+    console.warn('road route', e);
+    roads.set(sig, { status: 'fail' });
+  }
+  if (stopsSig(routeIds) === sig) { renderStopList(); drawRoute(); }
+  return roads.get(sig);
+}
+function paintRoad() {
+  const el = $('#roadInfo'); if (!el) return;
+  const r = routeIds.length >= 2 ? roadNow() : null;
+  if (routeIds.length < 2) el.innerHTML = '';
+  else if (!r || r.status === 'busy') el.innerHTML = '<span class="badge">⏳ Measuring road distance…</span>';
+  else if (r.status === 'ok') el.innerHTML = `<span class="badge ok">🛣️ ${r.road.km.toFixed(1)} km by road</span> <span class="small muted">${routeIds.length - 2} stop${routeIds.length === 3 ? '' : 's'} in between</span>`;
+  else el.innerHTML = '<span class="badge warn">Road distance unavailable (no internet?)</span> <button class="btn btn-sm btn-ghost" id="roadRetry">Retry</button>';
+}
+$('#roadInfo').addEventListener('click', (e) => { if (e.target.id === 'roadRetry') { roads.delete(stopsSig(routeIds)); measureNow(); } });
 function setDirty(v) { dirty = v; const b = $('#routeDirty'); b.className = `badge ${v ? 'warn' : 'ok'}`; b.textContent = v ? 'Unsaved changes' : (route ? 'Saved' : 'Not created yet'); }
 function autoArrange() {
   if (routeIds.length < 3) return;
@@ -359,13 +405,13 @@ function addToRoute(id) {
   setDirty(true); renderStopList(); drawRoute();
   toast(`Added “${stops[id]?.name}” — remember to save`, 'ok');
 }
-async function createStopAt(lat, lng) {
+async function createStopAt(lat, lng, suggest = '') {
   const near = Object.entries(stops).map(([id, s]) => ({ id, s, d: haversine({ lat, lng }, s) })).sort((a, b) => a.d - b.d)[0];
   if (near && near.d < 40) {
     const use = await confirmBox('Stop already exists', `“${near.s.name}” is ${Math.round(near.d)} m away. Add that stop instead of creating a duplicate?`, 'Use existing');
     if (use) return addToRoute(near.id);
   }
-  const name = await promptBox('New bus stop', 'Bus stop name', '', 'e.g. Hridaypur More');
+  const name = await promptBox('New bus stop', 'Bus stop name', suggest, 'e.g. Hridaypur More');
   if (!name) return;
   try {
     const id = await api.push('stops', { name: name.trim(), lat: +lat.toFixed(6), lng: +lng.toFixed(6), createdBy: user.uid, busKey: profile.busKey, createdAt: api.TS });
@@ -389,12 +435,18 @@ $('#tapCancel').addEventListener('click', () => setTapMode(false));
 $('#sortBtn').addEventListener('click', () => { autoArrange(); setDirty(true); renderStopList(); drawRoute(); toast('Stops arranged by distance from source'); });
 $('#saveRouteBtn').addEventListener('click', async (e) => {
   if (routeIds.length < 2) return toast('A route needs at least a source and a destination stop', 'bad');
-  const btn = e.currentTarget; setBusy(btn, true, 'Saving…');
+  const btn = e.currentTarget; setBusy(btn, true, 'Measuring road…');
   try {
+    if (roadNow()?.status === 'fail') roads.delete(stopsSig(routeIds)); // try once more
+    const r = await measureNow();
+    setBusy(btn, false); setBusy(btn, true, 'Saving…');
+    const road = r?.status === 'ok' ? r.road : null;
     await api.set(`routes/${profile.busKey}`, {
       busName: profile.busName, stops: routeIds, source: routeIds[0], destination: routeIds.at(-1), updatedAt: api.TS, updatedBy: user.uid,
+      ...(road ? { road } : {}),
     });
-    setDirty(false); toast('✅ Route saved — passengers can now find it', 'ok');
+    setDirty(false);
+    toast(road ? `✅ Route saved · ${road.km.toFixed(1)} km by road` : '✅ Route saved. Road distance will be added when the internet is back.', 'ok', 4500);
   } catch (err) { toast(friendlyError(err), 'bad'); } finally { setBusy(btn, false); }
 });
 $('#stopList').addEventListener('click', (e) => {
@@ -414,12 +466,14 @@ function renderStopList() {
   if (!routeIds.length) {
     ul.innerHTML = '<li style="justify-content:center;border:0" class="muted small">No stops yet. Add the source stop first, then the destination, then stops in between.</li>';
   } else {
+    const rd = roadNow();
+    const legs = rd?.status === 'ok' ? rd.road.legs : null;
     let cum = 0;
     ul.innerHTML = routeIds.map((id, i) => {
-      if (i) cum += haversine(stops[routeIds[i - 1]], stops[id]);
+      if (i) cum += legs ? legs[i - 1] : haversine(stops[routeIds[i - 1]], stops[id]);
       const cls = i === 0 ? 'src' : i === routeIds.length - 1 && routeIds.length > 1 ? 'dst' : '';
       return `<li class="${cls}"><div style="min-width:0"><div class="name">${esc(stops[id].name)}</div>
-        <div class="small muted">${i === 0 ? 'Source' : cls === 'dst' ? `Destination · ${fmtDist(cum)}` : fmtDist(cum)}</div></div>
+        <div class="small muted">${i === 0 ? 'Source' : `${cls === 'dst' ? 'Destination · ' : ''}${legs ? '' : '≈ '}${fmtDist(cum)}${legs ? ' by road' : ''}`}</div></div>
         <div class="acts">
           ${i ? `<button class="mini-btn" data-act="up" data-i="${i}" aria-label="Move up">${icon('up')}</button>` : ''}
           ${i < routeIds.length - 1 ? `<button class="mini-btn" data-act="down" data-i="${i}" aria-label="Move down">${icon('down')}</button>` : ''}
@@ -432,13 +486,16 @@ function renderStopList() {
   $('#routeTitle').textContent = routeIds.length >= 2 ? `${stops[routeIds[0]].name} → ${stops[routeIds.at(-1)].name}` : 'New route';
   setDirty(dirty);
   paintDir();
+  paintRoad();
+  if (routeIds.length >= 2 && !roadNow()) measureSoon();
 }
 function drawRoute() {
   if (!map) return;
   routeLayer.clearLayers(); otherStopLayer.clearLayers();
   const col = colorFor(profile.busKey);
-  const pts = routeIds.map((id) => [stops[id].lat, stops[id].lng]);
-  if (pts.length > 1) L.polyline(pts, { color: col, weight: 6, opacity: 0.85 }).addTo(routeLayer);
+  const rd = roadNow();
+  if (rd?.status === 'ok') L.polyline(decodePolyline(rd.road.poly), { color: col, weight: 6, opacity: 0.85 }).addTo(routeLayer);
+  else if (routeIds.length > 1) L.polyline(routeIds.map((id) => [stops[id].lat, stops[id].lng]), { color: col, weight: 4, opacity: 0.6, dashArray: '6 8' }).addTo(routeLayer);
   routeIds.forEach((id, i) => {
     const kind = i === 0 ? 'src' : i === routeIds.length - 1 ? 'dst' : '';
     L.marker([stops[id].lat, stops[id].lng], { icon: stopIcon(kind, kind ? stops[id].name : '') }).bindPopup(`<b>${i + 1}. ${esc(stops[id].name)}</b>`).addTo(routeLayer);
@@ -450,26 +507,50 @@ function drawRoute() {
   }
 }
 function fitRoute() {
-  if (map && routeIds.length > 1) map.fitBounds(routeIds.map((id) => [stops[id].lat, stops[id].lng]), { padding: [40, 40], paddingBottomRight: [40, innerWidth < 900 ? innerHeight * 0.5 : 40], paddingTopLeft: [innerWidth >= 900 ? 440 : 30, 80] });
+  const rd = roadNow();
+  const pts = rd?.status === 'ok' ? decodePolyline(rd.road.poly).map((p) => [p.lat, p.lng]) : routeIds.map((id) => [stops[id].lat, stops[id].lng]);
+  if (map && routeIds.length > 1) map.fitBounds(pts, { padding: [40, 40], paddingBottomRight: [40, innerWidth < 900 ? innerHeight * 0.5 : 40], paddingTopLeft: [innerWidth >= 900 ? 440 : 30, 80] });
 }
-// Existing-stop search
+// Stop search: existing bus stops first, then place hints (locality, district) from OpenStreetMap
 (() => {
-  const input = $('#stopSearch'); let list;
+  const input = $('#stopSearch'); let list, items = [], seq = 0;
   const close = () => { list?.remove(); list = null; };
-  input.addEventListener('input', () => {
-    const q = input.value.trim().toLowerCase();
-    if (!q) return close();
-    const ref = lastFix || map?.getCenter();
-    const res = Object.entries(stops).filter(([id, s]) => !routeIds.includes(id) && s.name.toLowerCase().includes(q))
-      .map(([id, s]) => ({ id, s, d: ref ? haversine(ref, s) : 0 })).sort((a, b) => a.d - b.d).slice(0, 8);
+  const placeholder = () => { input.placeholder = routeIds.length === 0 ? 'Source: type a place or bus stop…' : routeIds.length === 1 ? 'Destination: type a place or bus stop…' : 'Stop in between: type a place or bus stop…'; };
+  new MutationObserver(placeholder).observe($('#stopList'), { childList: true });
+  placeholder();
+  const paint = (q, places, state) => {
     if (!list) { list = document.createElement('div'); list.className = 'ac-list'; list.style.left = '0'; input.parentElement.appendChild(list); }
-    list.innerHTML = res.length ? res.map((r) => `<div class="ac-item" data-id="${r.id}"><span class="ico">🚏</span>${esc(r.s.name)}<span class="meta">${fmtDist(r.d)}</span></div>`).join('')
-      : '<div class="ac-empty">No stop found — use “Stop at my location” or “Tap map” to create it.</div>';
+    const ref = lastFix || map?.getCenter();
+    const own = Object.entries(stops).filter(([id, s]) => !routeIds.includes(id) && s.name.toLowerCase().includes(q.toLowerCase()))
+      .map(([id, s]) => ({ id, s, d: ref ? haversine(ref, s) : 0 })).sort((a, b) => a.d - b.d).slice(0, 5);
+    // Places with a bus stop already within 40 m are shown as that stop instead
+    const extra = (places || []).filter((p) => !own.some((o) => haversine(o.s, p) < 40)).slice(0, 8);
+    items = [...own.map((o) => ({ stop: o.id })), ...extra.map((p) => ({ place: p }))];
+    list.innerHTML = own.map((r, i) => `<div class="ac-item" data-i="${i}"><span class="ico">🚏</span><span class="ac-txt"><b>${esc(r.s.name)}</b><span class="sub">Saved bus stop</span></span><span class="meta">${fmtDist(r.d)}</span></div>`).join('')
+      + extra.map((p, j) => `<div class="ac-item" data-i="${own.length + j}"><span class="ico">${p.icon}</span><span class="ac-txt"><b>${esc(p.name)}</b><span class="sub">${esc([p.type, p.detail].filter(Boolean).join(' · '))}</span></span><span class="meta">${ref ? fmtDist(haversine(ref, p)) : ''}</span></div>`).join('')
+      + (state === 'busy' ? '<div class="ac-empty">Searching places…</div>'
+        : state === 'fail' ? '<div class="ac-empty">Place search is unavailable right now. Use “At my location” or “Tap on map”.</div>'
+          : items.length ? '' : '<div class="ac-empty">No match. Try another spelling, or use “At my location” / “Tap on map”.</div>');
+  };
+  const lookup = debounce(async (q) => {
+    const my = ++seq;
+    try {
+      const places = await searchPlaces(q, lastFix || map?.getCenter());
+      if (my === seq && input.value.trim() === q) paint(q, places, 'ok');
+    } catch (e) { if (e.name !== 'AbortError' && my === seq) paint(q, [], 'fail'); }
+  }, 350);
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    if (!q) { seq++; return close(); }
+    paint(q, null, q.length >= 3 ? 'busy' : 'ok');
+    if (q.length >= 3) lookup(q);
   });
   input.addEventListener('blur', () => setTimeout(close, 180));
   input.parentElement.addEventListener('mousedown', (e) => {
-    const it = e.target.closest('[data-id]'); if (!it) return;
-    e.preventDefault(); addToRoute(it.dataset.id); input.value = ''; close();
+    const it = items[+e.target.closest('[data-i]')?.dataset.i]; if (!it) return;
+    e.preventDefault(); input.value = ''; close(); seq++;
+    if (it.stop) addToRoute(it.stop);
+    else { map?.flyTo([it.place.lat, it.place.lng], 16, { duration: 0.6 }); createStopAt(it.place.lat, it.place.lng, it.place.name); }
   });
 })();
 

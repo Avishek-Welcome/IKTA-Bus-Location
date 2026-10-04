@@ -16,6 +16,7 @@ A mobile-first web app (PWA) for live bus tracking. It runs in any modern browse
 - Source is your GPS location (default) or any bus stop. Destination is a bus stop, with an autocomplete list ranked by name match and distance.
 - Finds every route (bus name, e.g. *DN 12*) that serves both stops in the right direction. Shows each incoming bus with its distance along the route, its ETA to your boarding stop and a progress bar. The closest incoming bus is marked **Nearest incoming**.
 - Chips list every bus name on the route so you can pick a preferred bus.
+- **Bus number view**: pick a bus number (chips under the search, a bus marker's popup, or a favourite bus) to see its whole road route with every stop, the total km by road, and every bus of that number running now. ETAs and distances use the road route when the driver has saved one.
 - **10-minute alert**: a tone plays (Web Audio, no download needed) and the phone vibrates when a bus is 10 minutes or less from your stop. If the app is in the background, a system notification is shown instead. A bus that has already passed your stop never triggers an alert.
 - **Live crowd feedback** (🟢 Seats free · 🟡 Standing · 🔴 Crowded · ⛔ Packed). Each report earns **5 IKTA Coins**.
 - **Favourites**: you can keep several named lists of routes and bus numbers. They are saved on the device and synced to Firebase.
@@ -25,6 +26,8 @@ A mobile-first web app (PWA) for live bus tracking. It runs in any modern browse
 - One button starts or stops GPS broadcasting. Updates are sent every 1.5 s while moving and every 10 s while standing still. A screen wake lock keeps the phone awake. The bus is shown as offline automatically if the connection drops.
 - A direction toggle (towards destination or towards source) lets passengers' ETAs skip buses going the other way.
 - **Route & stops editor**: add a stop at your current GPS position, by tapping the map, or from existing stops. Stops are auto-arranged by distance from the source, and you can reorder them or change the source and destination. One route is shared by every bus with the same name.
+- **Place hints**: typing a place or bus stop name shows saved stops plus OpenStreetMap places with their road, town, district and state ([Photon](https://photon.komoot.io), free, no key; fair use only, no bulk requests).
+- **Road distance**: the route is measured along the roads through the source, every stop in order, and the destination ([OSRM](https://project-osrm.org) via the FOSSGIS server `routing.openstreetmap.de`, with the OSRM demo server as backup; free, no key, light use only). The road line, total km and per-stop km are saved with the route, so passengers' phones never call the router.
 
 **Owner**
 - Registration needs a **10-character one-time secret code** (letters, digits and special characters, no repeated characters). The code is used up in an atomic transaction and the owner's name, user ID and time are recorded on it.

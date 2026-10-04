@@ -370,6 +370,12 @@ button, a, .leaflet-control { touch-action: manipulation; }
 .ac-item .ico { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--surface-2); flex: none; font-size: 16px; }
 .ac-item .meta { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; }
 .ac-item mark { background: rgba(47, 91, 255, .15); color: inherit; border-radius: 3px; }
+.ac-txt { display: flex; flex-direction: column; min-width: 0; }
+.ac-txt b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-txt .sub { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.road-info { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 8px; }
+.road-info:empty { display: none; }
+#busNumChips { margin-top: 8px; }
 .ac-empty { padding: 14px; color: var(--muted); font-size: 13px; text-align: center; }
 
 /* Bus result cards */

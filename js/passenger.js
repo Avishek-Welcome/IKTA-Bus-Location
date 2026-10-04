@@ -1,11 +1,12 @@
 // IKTA Bus — Passenger (home) page: live map, route search, ETA, alerts, crowd feedback.
 import {
-  $, $$, esc, boot, store, toast, icon, haversine, buildPath, projectOnPath, fmtDist, fmtEta, timeAgo,
+  $, $$, esc, boot, store, toast, icon, haversine, projectOnPath, fmtDist, fmtEta, timeAgo,
   createMap, userMovingMap, setupRotation, upgradeMap, mapLangPicker, mapLangSelect, sheetSwipe, setSheetState, busIcon, setBusHeading, meIcon, stopIcon, glide, colorFor, CROWD, LIVE_FRESH_MS, unlockAudio, playAlertTone,
   friendlyError, debounce,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
 import { addFav, removeFav, isFav, attachFavSync } from './favs.js';
+import { routePath } from './road.js';
 
 boot();
 demoBanner();
@@ -57,7 +58,7 @@ function onPos(p) {
   } else { glide(meMarker, { lat: userPos.lat, lng: userPos.lng }); accCircle.setLatLng(ll).setRadius(userPos.acc); }
   if (firstFix) {
     firstFix = false;
-    if (!sel.to) map.setView(ll, Math.max(map.getZoom(), 14), { animate: true });
+    if (!sel.to && !busFilter) map.setView(ll, Math.max(map.getZoom(), 14), { animate: true });
     if (sel.to && sel.from.type === 'gps') runSearch(false);
   }
   scheduleRender();
@@ -235,8 +236,9 @@ function runSearch(fit = true) {
       if (!near || near.d > 5000) continue;
       i = ids.indexOf(near.id); walk = near.d;
     }
-    const path = buildPath(ids.map((id) => stops[id]));
-    matches.push({ key, busName: r.busName || key, ids, i, j, dir: i < j ? 1 : -1, path, refAlong: path.cum[i], stopId: ids[i], walk });
+    // Road geometry saved by the driver (falls back to straight lines between stops)
+    const path = routePath(r, stops);
+    matches.push({ key, busName: r.busName || key, ids, i, j, dir: i < j ? 1 : -1, path, refAlong: path.stopAlong[i], stopId: ids[i], walk, rideM: Math.abs(path.stopAlong[j] - path.stopAlong[i]) });
   }
   alerted.clear();
   if (innerWidth < 900) sheetState('half');
@@ -252,10 +254,10 @@ function drawRoutes(fit) {
   for (const m of matches) {
     if (busFilter && m.key !== busFilter) continue;
     const col = colorFor(m.key);
-    const all = m.ids.map((id) => [stops[id].lat, stops[id].lng]);
+    const all = m.path.points.map((p) => [p.lat, p.lng]);
     L.polyline(all, { color: col, weight: 4, opacity: 0.25 }).addTo(routeLayer);
     const [a, b] = [Math.min(m.i, m.j), Math.max(m.i, m.j)];
-    const seg = all.slice(a, b + 1);
+    const seg = all.slice(m.path.idx[a], m.path.idx[b] + 1);
     L.polyline(seg, { color: col, weight: 7, opacity: 0.9, lineCap: 'round' }).addTo(routeLayer);
     m.ids.forEach((id, idx) => {
       const s = stops[id];
@@ -342,6 +344,7 @@ function renderAll() {
   $('#clearBtn').classList.toggle('hidden', !sel.to);
   $('#routeInfo').classList.toggle('hidden', !sel.to);
   $('#nearHead').classList.toggle('hidden', !!sel.to);
+  paintBusNumChips();
   if (!api && !Object.keys(live).length) return; // still loading → keep skeletons
 
   if (sel.to) {
@@ -374,7 +377,7 @@ function renderAll() {
     const incoming = shown.filter((r) => !r.ev.passed);
     const m0 = matches.find((m) => !busFilter || m.key === busFilter) || matches[0];
     const boardName = stops[m0.stopId]?.name;
-    $('#summary').innerHTML = `<span><strong>${incoming.length}</strong> incoming bus${incoming.length === 1 ? '' : 'es'} · board at <strong>${esc(boardName)}</strong>${m0.walk ? ` <span class="muted">(${fmtDist(m0.walk)} walk)</span>` : ''}</span>`;
+    $('#summary').innerHTML = `<span><strong>${incoming.length}</strong> incoming bus${incoming.length === 1 ? '' : 'es'} · board at <strong>${esc(boardName)}</strong>${m0.walk ? ` <span class="muted">(${fmtDist(m0.walk)} walk)</span>` : ''} · ${m0.path.road ? '' : '≈ '}${fmtDist(m0.rideM)}${m0.path.road ? ' by road' : ''}</span>`;
     // 10-minute alert (only for incoming buses; never once a bus has passed)
     for (const r of incoming) {
       if (r.ev.eta <= ALERT_SEC && !alerted.has(r.reg)) { alerted.add(r.reg); fireAlert(r.b, { ...r.ev, reg: r.reg }); }
@@ -385,15 +388,68 @@ function renderAll() {
     return;
   }
 
-  // No search → live buses near the user / map centre
+  // No search → live buses near the user / map centre, or every running bus of the chosen bus number
   const ref = userPos || map.getCenter();
   const near = Object.entries(live).filter(([, lv]) => fresh(lv))
     .map(([reg, lv]) => ({ reg, lv, d: haversine(ref, lv), b: buses[reg] || { busName: lv.busName, busKey: lv.busKey, regNo: lv.regNo } }))
-    .filter((x) => !busFilter || x.b.busKey === busFilter)
-    .sort((a, b) => a.d - b.d).slice(0, 20);
-  $('#nearHead').innerHTML = `<span><strong>${near.length}</strong> live bus${near.length === 1 ? '' : 'es'} ${userPos ? 'near you' : 'on the map'}${busFilter ? ` · ${esc(routes[busFilter]?.busName || busFilter)} <a href="#" data-chip="">show all</a>` : ''}</span>`;
+    .filter((x) => !busFilter || (x.b.busKey || x.lv.busKey) === busFilter)
+    .sort((a, b) => a.d - b.d).slice(0, busFilter ? 100 : 20);
+  if (busFilter) {
+    const r = routes[busFilter], name = r?.busName || live[near[0]?.reg]?.busName || busFilter;
+    const bp = r && routePath(r, stops);
+    const line = bp && bp.ids.length >= 2
+      ? `<br><span class="small">${esc(stops[bp.ids[0]].name)} → ${esc(stops[bp.ids.at(-1)].name)} · <b>${bp.road ? '' : '≈ '}${bp.km.toFixed(1)} km${bp.road ? ' by road' : ''}</b> · ${bp.ids.length} stops</span>`
+      : '<br><span class="small">This bus has no saved route yet.</span>';
+    $('#nearHead').innerHTML = `<span>Bus <strong>${esc(name)}</strong> · <strong>${near.length}</strong> running now <a href="#" data-chip="">show all buses</a>${line}</span>`;
+  } else {
+    $('#nearHead').innerHTML = `<span><strong>${near.length}</strong> live bus${near.length === 1 ? '' : 'es'} ${userPos ? 'near you' : 'on the map'}${Object.keys(routes).length ? ' · <span class="small">pick a bus number to see its route</span>' : ''}</span>`;
+  }
   list.innerHTML = near.length ? near.map((x) => busCard(x.b, x.reg, null)).join('')
-    : '<div class="empty"><span class="big">🛰️</span>No buses are sharing location right now.<br><span class="small">Enter your destination to see routes and bus numbers.</span></div>';
+    : busFilter ? `<div class="empty"><span class="big">🚌</span>No ${esc(routes[busFilter]?.busName || '')} bus is sharing its location right now.<br><span class="small">Buses appear on the route as soon as their driver starts sharing.</span></div>`
+      : '<div class="empty"><span class="big">🛰️</span>No buses are sharing location right now.<br><span class="small">Enter your destination to see routes and bus numbers.</span></div>';
+}
+// Bus-number chips (shown when there is no destination search)
+let chipSig = null;
+function paintBusNumChips() {
+  const el = $('#busNumChips');
+  const list = Object.entries(routes).map(([k, r]) => [k, r.busName || k]).sort((a, b) => a[1].localeCompare(b[1], undefined, { numeric: true }));
+  const sig = sel.to ? '' : `${busFilter}|${list.map((x) => x.join(':')).join(',')}`;
+  if (sig === chipSig) return;
+  chipSig = sig;
+  el.classList.toggle('hidden', !!sel.to || !list.length);
+  el.innerHTML = sel.to ? '' : list.map(([k, n]) => `<button class="chip ${busFilter === k ? 'active' : ''}" data-chip="${esc(k)}" style="${busFilter === k ? '' : `border-color:${colorFor(k)}55`}">🚌 ${esc(n)}</button>`).join('');
+}
+/** Draw one bus number's whole route along the roads, with all its stops */
+let busFitPending = true; // fit the map to the bus route the first time it can be drawn
+function drawBusRoute(fit = busFitPending) {
+  routeLayer.clearLayers();
+  const r = routes[busFilter];
+  if (!r || sel.to) return;
+  const bp = routePath(r, stops);
+  if (bp.ids.length < 2) return;
+  const col = colorFor(busFilter);
+  const pts = bp.points.map((p) => [p.lat, p.lng]);
+  L.polyline(pts, { color: col, weight: 7, opacity: 0.85, lineCap: 'round', dashArray: bp.road ? null : '6 9' }).addTo(routeLayer);
+  bp.ids.forEach((id, i) => {
+    const s = stops[id], end = i === 0 ? 'src' : i === bp.ids.length - 1 ? 'dst' : '';
+    L.marker([s.lat, s.lng], { icon: stopIcon(end, end ? s.name : ''), zIndexOffset: end ? 500 : 100 })
+      .bindPopup(`<b>🚏 ${esc(s.name)}</b><br><span class="muted">${esc(r.busName)} · stop ${i + 1}/${bp.ids.length} · ${fmtDist(bp.stopAlong[i])} from ${esc(stops[bp.ids[0]].name)}</span>
+        <div class="row" style="margin-top:8px;gap:6px"><button class="btn btn-sm btn-ghost" data-setfrom="${id}">From here</button><button class="btn btn-sm btn-primary" data-setto="${id}">Go here</button></div>`).addTo(routeLayer);
+  });
+  if (fit) {
+    busFitPending = false;
+    const pad = innerWidth >= 900 ? { paddingTopLeft: [440, 80], paddingBottomRight: [60, 60] } : { paddingTopLeft: [30, 90], paddingBottomRight: [30, Math.min(innerHeight * 0.45, 380)] };
+    map.fitBounds(pts, { ...pad, maxZoom: 15 });
+  }
+}
+function pickBus(key) {
+  busFilter = key || null; focusReg = null;
+  if (sel.to) return runSearch(true);
+  const p = new URLSearchParams(busFilter ? { bus: busFilter } : {});
+  history.replaceState(null, '', busFilter ? `?${p}` : location.pathname);
+  drawBusRoute(true);
+  if (!busFilter) routeLayer.clearLayers();
+  renderAll();
 }
 
 function renderMarkers() {
@@ -422,7 +478,7 @@ function renderMarkers() {
       setBusHeading(mk, lv.heading);
       glide(mk, { lat: lv.lat, lng: lv.lng });
     }
-    mk.bindPopup(`<b>🚌 ${esc(b.busName)}</b><br><span class="mono">${esc(b.regNo || reg)}</span><br>${userPos ? `${fmtDist(haversine(userPos, lv))} from you · ` : ''}${timeAgo(lv.ts)}`);
+    mk.bindPopup(`<b>🚌 ${esc(b.busName)}</b><br><span class="mono">${esc(b.regNo || reg)}</span><br>${userPos ? `${fmtDist(haversine(userPos, lv))} from you · ` : ''}${timeAgo(lv.ts)}${routes[key] && busFilter !== key && !sel.to ? `<br><button class="btn btn-sm btn-primary" style="margin-top:8px" data-busroute="${esc(key)}">Show route &amp; all ${esc(b.busName)} buses</button>` : ''}`);
   }
   for (const reg of Object.keys(markers)) if (!active.has(reg)) { busLayer.removeLayer(markers[reg]); delete markers[reg]; }
   if (focusReg && live[focusReg] && markers[focusReg] && !userMovingMap(map)) map.panTo([live[focusReg].lat, live[focusReg].lng], { animate: true });
@@ -453,6 +509,7 @@ map.on('popupopen', (e) => {
   const el = e.popup.getElement();
   el.querySelector('[data-setfrom]')?.addEventListener('click', (ev) => { sel.from = { type: 'stop', id: ev.target.dataset.setfrom }; paintInputs(); map.closePopup(); if (sel.to) runSearch(); });
   el.querySelector('[data-setto]')?.addEventListener('click', (ev) => { sel.to = ev.target.dataset.setto; paintInputs(); map.closePopup(); runSearch(); });
+  el.querySelector('[data-busroute]')?.addEventListener('click', (ev) => { map.closePopup(); pickBus(ev.target.dataset.busroute); });
 });
 
 // ---------- List interactions ----------
@@ -460,8 +517,7 @@ $('#sheetBody').addEventListener('click', async (e) => {
   const chip = e.target.closest('[data-chip]');
   if (chip) {
     e.preventDefault();
-    busFilter = chip.dataset.chip || null;
-    if (sel.to) runSearch(true); else renderAll();
+    pickBus(chip.dataset.chip);
     return;
   }
   const favBtn = e.target.closest('[data-favbus]');
@@ -528,6 +584,7 @@ function coinBurst(from) {
 })();
 paintInputs();
 renderStops();
+if (busFilter && !sel.to) drawBusRoute();
 
 // ---------- Data connection (loaded after the map is already visible) ----------
 (async () => {
@@ -535,9 +592,13 @@ renderStops();
     api = await connect('passenger');
     api.listen('stops', (v) => {
       stops = v || {}; store.set('ikta_cache_stops', stops); renderStops(); paintInputs();
-      if (sel.to && !matches.length) runSearch(!matches.length); else if (sel.to) runSearch(false);
+      if (sel.to && !matches.length) runSearch(!matches.length); else if (sel.to) runSearch(false); else if (busFilter) drawBusRoute();
     });
-    api.listen('routes', (v) => { routes = v || {}; store.set('ikta_cache_routes', routes); if (sel.to) runSearch(false); });
+    api.listen('routes', (v) => {
+      routes = v || {}; store.set('ikta_cache_routes', routes);
+      if (sel.to) runSearch(false); else if (busFilter) drawBusRoute();
+      scheduleRender();
+    });
     api.listen('buses', (v) => { buses = v || {}; scheduleRender(); });
     api.listen('crowd', (v) => { crowd = v || {}; scheduleRender(); });
     api.listen('live', (v) => { live = v || {}; scheduleRender(); });
