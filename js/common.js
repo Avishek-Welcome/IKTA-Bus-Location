@@ -1,4 +1,5 @@
 // IKTA Bus — shared UI helpers, geo math and constants (no external deps)
+import './app-bridge.js'; // first, so pages see the Android app's GPS before they ask for it
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
