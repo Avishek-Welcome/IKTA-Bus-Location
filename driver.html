@@ -13,6 +13,7 @@
   <link rel="modulepreload" href="js/driver.js">
   <link rel="modulepreload" href="js/common.js">
   <link rel="modulepreload" href="js/api.js">
+  <link rel="modulepreload" href="js/road.js">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -118,14 +119,15 @@
             <h3 id="routeTitle">Route</h3><span class="spacer"></span>
             <span class="badge" id="routeDirty"></span>
           </div>
-          <p class="hint" style="margin-top:0">All <b id="routeBusName">—</b> buses share this route. Stops are auto-arranged by distance from the source stop.</p>
+          <p class="hint" style="margin-top:0">All <b id="routeBusName">—</b> buses share this route. Add the source first, then the destination, then the stops in between. Distances follow the roads through every stop.</p>
           <div class="grid-2" style="margin:10px 0">
             <button class="btn btn-ghost btn-sm" id="addHereBtn"><i data-icon="pin"></i> At my location</button>
             <button class="btn btn-ghost btn-sm" id="addTapBtn"><i data-icon="map"></i> Tap on map</button>
           </div>
           <div class="input-wrap" style="position:relative">
-            <input class="input" id="stopSearch" placeholder="Add an existing bus stop…" autocomplete="off">
+            <input class="input" id="stopSearch" placeholder="Type a place or bus stop name…" autocomplete="off" enterkeyhint="search">
           </div>
+          <div class="road-info" id="roadInfo"></div>
           <ul class="stop-list" id="stopList" style="margin-top:8px"></ul>
           <div class="row" style="margin-top:12px">
             <button class="btn btn-ghost" id="sortBtn" style="flex:1">↕ Auto-arrange</button>
