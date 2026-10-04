@@ -346,6 +346,7 @@ function initFleetMap() {
     if (!window.L) return setTimeout(go, 40);
     map = createMap('fleetMap', { zoomControl: true });
     fleetSpeedo = speedo(map.getContainer(), 'in-map');
+    fleetSpeedo.empty();
     L.DomEvent.disableClickPropagation(fleetSpeedo.el);
     map.on('click', () => { selReg = null; paintSpeedo(); });
     updateFleetMap(true);
@@ -353,13 +354,15 @@ function initFleetMap() {
   go();
 }
 let fitted = false;
-let fleetSpeedo = null, selReg = null; // bus picked on the fleet map: its speedometer shows over the map
+let fleetSpeedo = null, selReg = null; // bus picked on the fleet map for the always-on speedometer
 function selectBus(reg) { selReg = reg; paintSpeedo(); }
 function paintSpeedo() {
   if (!fleetSpeedo) return;
-  const l = selReg && live[selReg];
-  if (!l || !isLive(selReg)) { fleetSpeedo.hide(); return; }
-  fleetSpeedo.set(l.speed, buses[selReg]?.busName || l.busName);
+  // the picked bus, else the most recently updated live bus, else an empty dial
+  const reg = selReg && isLive(selReg) ? selReg
+    : busKeys.filter(isLive).sort((a, b) => (live[b].ts || 0) - (live[a].ts || 0))[0];
+  if (!reg) { fleetSpeedo.empty('No live bus'); return; }
+  fleetSpeedo.set(live[reg].speed, buses[reg]?.busName || live[reg].busName);
 }
 function updateFleetMap(forceFit = false) {
   if (!map) return;

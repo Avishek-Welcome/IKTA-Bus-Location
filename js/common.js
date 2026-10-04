@@ -555,13 +555,14 @@ export function speedChip(ms) {
 }
 // Update a bus marker's speed badge in place
 // Round speedometer over a map: the arc fills up to 80 km/h, green → amber (50) → red (65),
-// grey when stopped. Optional caption under the dial (the selected bus's name).
+// grey at 0 km/h. Always on screen; shows "--" when there is no live speed. Optional caption
+// under the dial (the bus's name).
 const SPEEDO_MAX = 80;
 export function speedo(host, extraClass = '') {
   const el = document.createElement('div');
-  el.className = `speedo hidden ${extraClass}`;
+  el.className = `speedo none ${extraClass}`;
   el.setAttribute('role', 'img');
-  el.innerHTML = '<svg viewBox="0 0 100 100" aria-hidden="true"><circle class="trk" cx="50" cy="50" r="42" pathLength="1"/><circle class="val" cx="50" cy="50" r="42" pathLength="1"/></svg><div class="read"><b class="num">0</b><span>km/h</span></div><div class="cap hidden"></div>';
+  el.innerHTML = '<svg viewBox="0 0 100 100" aria-hidden="true"><circle class="trk" cx="50" cy="50" r="42" pathLength="1"/><circle class="val" cx="50" cy="50" r="42" pathLength="1"/></svg><div class="read"><b class="num">--</b><span>km/h</span></div><div class="cap hidden"></div>';
   host.appendChild(el);
   return {
     el,
@@ -575,7 +576,16 @@ export function speedo(host, extraClass = '') {
       if (label && cap.textContent !== label) cap.textContent = label;
       el.setAttribute('aria-label', `${label ? `${label}: ` : ''}${k} km/h`);
     },
-    hide() { el.classList.add('hidden'); },
+    // no live bus / no GPS yet: an empty dial with "--"
+    empty(label) {
+      el.className = `speedo none ${extraClass}`;
+      el.querySelector('.val').style.strokeDasharray = '0 1';
+      el.querySelector('.num').textContent = '--';
+      const cap = el.querySelector('.cap');
+      cap.classList.toggle('hidden', !label);
+      if (label) cap.textContent = label;
+      el.setAttribute('aria-label', `${label ? `${label}: ` : ''}speed not available`);
+    },
   };
 }
 export function setBusSpeed(marker, ms) {
