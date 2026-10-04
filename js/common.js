@@ -543,7 +543,25 @@ export function createMap(el, { view, zoomControl = false } = {}) {
   upgradeMap(map);
   return map;
 }
-export function busIcon(name, color, { stale = false, dim = false, heading = null } = {}) {
+// ---------- Live speed ----------
+// km/h from m/s; under 2 km/h is GPS drift on a parked bus → "stopped"
+export const kmh = (ms) => Math.round((ms || 0) * 3.6);
+export const speedClass = (ms) => { const k = kmh(ms); return k < 2 ? 'stopped' : k < 15 ? 'slow' : 'moving'; };
+// Speed pill for cards and popups: a small dial plus the number, coloured by stopped / slow / moving
+export function speedChip(ms) {
+  const k = kmh(ms), cls = speedClass(ms);
+  const sweep = Math.min(1, k / 60); // dial fills up to 60 km/h
+  return `<span class="speed-chip ${cls}" title="Live speed"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 14.5a7.5 7.5 0 1 1 13 0" class="trk"/><path d="M3.5 14.5a7.5 7.5 0 1 1 13 0" class="val" pathLength="1" style="stroke-dasharray:${sweep.toFixed(2)} 1"/></svg>${cls === 'stopped' ? 'Stopped' : `<b>${k}</b> km/h`}</span>`;
+}
+// Update a bus marker's speed badge in place
+export function setBusSpeed(marker, ms) {
+  const el = marker.getElement()?.querySelector('.spd');
+  if (!el) return;
+  const cls = speedClass(ms), txt = cls === 'stopped' ? '■' : String(kmh(ms));
+  if (el.textContent !== txt) el.textContent = txt;
+  el.className = `spd ${cls}`;
+}
+export function busIcon(name, color, { stale = false, dim = false, heading = null, speed = null } = {}) {
   return L.divIcon({
     className: '',
     iconSize: [38, 38],
@@ -551,7 +569,8 @@ export function busIcon(name, color, { stale = false, dim = false, heading = nul
     popupAnchor: [0, -18],
     html: `<div class="bus-marker ${stale ? 'stale' : ''} ${dim ? 'dim' : ''}" style="--c:${color}">
       ${heading != null ? `<div class="arrow" style="--h:${Math.round(heading)}deg"><svg viewBox="0 0 24 24"><path d="M12 1 21 19 12 14.5 3 19z"/></svg></div>` : ''}
-      <div class="pin">${ICONS.bus}</div><div class="label">${esc(name)}</div></div>`,
+      <div class="pin">${ICONS.bus}</div><div class="label">${esc(name)}</div>
+      ${speed != null ? `<div class="spd ${speedClass(speed)}">${speedClass(speed) === 'stopped' ? '■' : kmh(speed)}</div>` : ''}</div>`,
   });
 }
 // Turn a bus marker's arrow to `heading` the short way round (CSS animates it) without

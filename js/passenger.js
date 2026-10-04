@@ -1,7 +1,7 @@
 // IKTA Bus — Passenger (home) page: live map, route search, ETA, alerts, crowd feedback.
 import {
   $, $$, esc, boot, store, toast, icon, haversine, projectOnPath, fmtDist, fmtEta, timeAgo,
-  createMap, userMovingMap, setupRotation, upgradeMap, mapLangPicker, mapLangSelect, sheetSwipe, setSheetState, busIcon, setBusHeading, meIcon, stopIcon, glide, colorFor, CROWD, LIVE_FRESH_MS, unlockAudio, playAlertTone,
+  createMap, userMovingMap, setupRotation, upgradeMap, mapLangPicker, mapLangSelect, sheetSwipe, setSheetState, busIcon, setBusHeading, setBusSpeed, speedChip, meIcon, stopIcon, glide, colorFor, CROWD, LIVE_FRESH_MS, unlockAudio, playAlertTone,
   friendlyError, debounce,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
@@ -331,7 +331,7 @@ function busCard(b, reg, ev, extra = '') {
     <div class="bus-meta">
       <span class="badge live">Live · ${timeAgo(lv.ts)}</span>
       ${crowdBadge(reg)}
-      ${lv.speed > 0.5 ? `<span class="badge">⚡ ${Math.round(lv.speed * 3.6)} km/h</span>` : ''}
+      ${speedChip(lv.speed)}
       ${ev?.offRoute ? '<span class="badge warn">Off route</span>' : ''}
     </div>
     ${ev?.passed ? '' : feedbackRow(reg)}
@@ -464,7 +464,7 @@ function renderMarkers() {
       dim = !m || (busFilter && key !== busFilter) || (lastAlong[reg]?.key === key && lastAlong[reg].dir !== m.dir);
     } else if (busFilter) dim = key !== busFilter;
     active.add(reg);
-    const ic = busIcon(b.busName || reg, colorFor(key || b.busName), { dim, heading: lv.heading });
+    const ic = busIcon(b.busName || reg, colorFor(key || b.busName), { dim, heading: lv.heading, speed: lv.speed });
     let mk = markers[reg];
     if (!mk) {
       mk = markers[reg] = L.marker([lv.lat, lv.lng], { icon: ic, zIndexOffset: 800 }).addTo(busLayer);
@@ -476,9 +476,10 @@ function renderMarkers() {
       if (mk._sig !== sig) { mk.setIcon(ic); mk._h = null; }
       mk._sig = sig;
       setBusHeading(mk, lv.heading);
+      setBusSpeed(mk, lv.speed);
       glide(mk, { lat: lv.lat, lng: lv.lng });
     }
-    mk.bindPopup(`<b>🚌 ${esc(b.busName)}</b><br><span class="mono">${esc(b.regNo || reg)}</span><br>${userPos ? `${fmtDist(haversine(userPos, lv))} from you · ` : ''}${timeAgo(lv.ts)}${routes[key] && busFilter !== key && !sel.to ? `<br><button class="btn btn-sm btn-primary" style="margin-top:8px" data-busroute="${esc(key)}">Show route &amp; all ${esc(b.busName)} buses</button>` : ''}`);
+    mk.bindPopup(`<b>🚌 ${esc(b.busName)}</b> ${speedChip(lv.speed)}<br><span class="mono">${esc(b.regNo || reg)}</span><br>${userPos ? `${fmtDist(haversine(userPos, lv))} from you · ` : ''}${timeAgo(lv.ts)}${routes[key] && busFilter !== key && !sel.to ? `<br><button class="btn btn-sm btn-primary" style="margin-top:8px" data-busroute="${esc(key)}">Show route &amp; all ${esc(b.busName)} buses</button>` : ''}`);
   }
   for (const reg of Object.keys(markers)) if (!active.has(reg)) { busLayer.removeLayer(markers[reg]); delete markers[reg]; }
   if (focusReg && live[focusReg] && markers[focusReg] && !userMovingMap(map)) map.panTo([live[focusReg].lat, live[focusReg].lng], { animate: true });

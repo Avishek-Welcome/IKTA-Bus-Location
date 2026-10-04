@@ -1,7 +1,7 @@
 // IKTA Bus — Owner console: one-time-code registration, fleet & driver account management, live fleet map.
 import {
   $, $$, esc, boot, toast, icon, modal, confirmBox, setBusy, idToEmail, USER_ID_RE, passwordOk, generatePassword,
-  attachStrength, wirePasswordToggles, friendlyError, keyOf, colorFor, busIcon, setBusHeading, createMap, glide, CROWD, timeAgo, LIVE_FRESH_MS,
+  attachStrength, wirePasswordToggles, friendlyError, keyOf, colorFor, busIcon, setBusHeading, setBusSpeed, speedChip, createMap, glide, CROWD, timeAgo, LIVE_FRESH_MS,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
 
@@ -180,7 +180,7 @@ function fleetItem(reg) {
       <span class="spacer"></span>
       ${isLive(reg) ? `<span class="badge live">Live · ${timeAgo(l.ts)}</span>` : `<span class="badge">${l ? `Offline · ${timeAgo(l.ts)}` : 'Never shared'}</span>`}
     </div>
-    <div class="bus-meta">${crowdB}${isLive(reg) && l.speed ? `<span class="badge">⚡ ${Math.round(l.speed * 3.6)} km/h</span>` : ''}</div>
+    <div class="bus-meta">${crowdB}${isLive(reg) ? speedChip(l.speed) : ''}</div>
     <div class="acts">
       ${b.driverUid
         ? `<button class="btn btn-sm btn-ghost" data-act="pw">${icon('key')} Change password</button>
@@ -357,16 +357,17 @@ function updateFleetMap(forceFit = false) {
     const l = live[reg], b = buses[reg];
     if (!b || !l || !isLive(reg)) { if (fleetMarkers[reg]) { map.removeLayer(fleetMarkers[reg]); delete fleetMarkers[reg]; } continue; }
     pts.push([l.lat, l.lng]);
-    const ic = busIcon(b.busName, colorFor(b.busKey), { heading: l.heading });
+    const ic = busIcon(b.busName, colorFor(b.busKey), { heading: l.heading, speed: l.speed });
     if (!fleetMarkers[reg]) fleetMarkers[reg] = L.marker([l.lat, l.lng], { icon: ic }).addTo(map);
     else {
       const mk = fleetMarkers[reg], sig = `${l.heading != null}|${b.busName}`;
       if (mk._sig !== sig) { mk.setIcon(ic); mk._h = null; }
       mk._sig = sig;
       setBusHeading(mk, l.heading);
+      setBusSpeed(mk, l.speed);
       glide(mk, l);
     }
-    fleetMarkers[reg].bindPopup(`<b>${esc(b.busName)}</b> <span class="mono">${esc(b.regNo)}</span><br>${esc(b.driverName || 'No driver')} · ${Math.round((l.speed || 0) * 3.6)} km/h`);
+    fleetMarkers[reg].bindPopup(`<b>${esc(b.busName)}</b> <span class="mono">${esc(b.regNo)}</span><br>${esc(b.driverName || 'No driver')} ${speedChip(l.speed)}`);
   }
   if ((forceFit || !fitted) && pts.length) { map.fitBounds(pts, { padding: [30, 30], maxZoom: 14 }); fitted = true; }
 }
