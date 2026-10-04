@@ -274,7 +274,7 @@ function startGeo() {
   if (watchId != null) return;
   if (!('geolocation' in navigator)) { toast('GPS is not available on this device', 'bad'); return; }
   watchId = navigator.geolocation.watchPosition(onFix, (e) => {
-    $('#bcStatus').textContent = e.code === 1 ? 'Location permission denied. Allow location access in browser settings.' : `GPS error: ${e.message}`;
+    $('#bcStatus').textContent = e.code === 1 ? 'Location permission denied. Allow location access in your phone or browser settings.' : `GPS error: ${e.message}`;
     if (e.code === 1) toast('Location permission is required to share the bus position', 'bad', 5000);
   }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
 }
@@ -351,6 +351,7 @@ async function startBroadcast() {
   startCompass(); // this tap lets iOS ask for compass access (the phone's top edge is the bus's head)
   toast('📱 Keep the phone upright in its holder, top edge toward the front of the bus', '', 5000);
   sending = true; sentCount = 0; sentInfo = null;
+  window.IKTAApp?.setSharing(true); // Android app: keep GPS going with the screen off
   $('#bcBtn').classList.add('on'); $('#bcLabel').innerHTML = 'STOP<br>SHARING';
   $('#bcStatus').textContent = 'Live! Passengers and your owner can see this bus.';
   $('#liveBadge').className = 'badge live'; $('#liveBadge').textContent = 'LIVE';
@@ -363,6 +364,7 @@ async function startBroadcast() {
 function stopBroadcast(notify = true) {
   if (!sending) return;
   sending = false;
+  window.IKTAApp?.setSharing(false);
   clearInterval(heartbeat);
   $('#bcBtn').classList.remove('on'); $('#bcLabel').innerHTML = 'START<br>SHARING';
   $('#bcStatus').textContent = 'Your location is not being shared.';

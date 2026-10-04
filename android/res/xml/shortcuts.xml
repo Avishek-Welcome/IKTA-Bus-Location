@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the app icon for these. Same as the website's manifest shortcuts. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="find" android:icon="@mipmap/ic_launcher" android:shortcutShortLabel="@string/shortcut_find">
+        <intent android:action="android.intent.action.VIEW" android:data="https://ikta-bus.web.app/index.html"
+            android:targetPackage="com.ikta.bus" android:targetClass="com.ikta.bus.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="favs" android:icon="@mipmap/ic_launcher" android:shortcutShortLabel="@string/shortcut_favs">
+        <intent android:action="android.intent.action.VIEW" android:data="https://ikta-bus.web.app/favorites.html"
+            android:targetPackage="com.ikta.bus" android:targetClass="com.ikta.bus.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="driver" android:icon="@mipmap/ic_launcher" android:shortcutShortLabel="@string/shortcut_driver">
+        <intent android:action="android.intent.action.VIEW" android:data="https://ikta-bus.web.app/driver.html"
+            android:targetPackage="com.ikta.bus" android:targetClass="com.ikta.bus.MainActivity" />
+    </shortcut>
+</shortcuts>

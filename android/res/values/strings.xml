@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">IKTA Bus</string>
+    <string name="shortcut_find">Find my bus</string>
+    <string name="shortcut_favs">Favourites</string>
+    <string name="shortcut_driver">Driver</string>
+</resources>

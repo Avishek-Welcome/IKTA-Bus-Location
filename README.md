@@ -117,6 +117,17 @@ passengers/{uid}              coins, lastFeedbackAt, history/{id}, favorites
 - iPhone: install with Safari → Share → *Add to Home Screen*. iOS pauses GPS when a web app is in the background, so drivers should keep the app open on screen. The wake lock helps on supported versions.
 - Alert sounds need one tap anywhere on the page first (a browser autoplay rule).
 
+## Android app (APK)
+`android/` is a small native app that shows https://ikta-bus.web.app full screen, so every website update reaches the app with no reinstall. On top of the website it adds:
+- the phone's own GPS (through `js/app-bridge.js`), which keeps running while a driver shares with the screen off or another app open (an ongoing "Sharing bus location" notification shows while it does);
+- the screen kept awake while sharing, and bus-arrival notifications;
+- long-press shortcuts for Find my bus, Favourites and Driver.
+
+**Download:** https://github.com/Avishek-Welcome/IKTA-Bus-Location/releases/download/android-latest/ikta-bus.apk
+**Install:** open the file on the phone, allow "Install unknown apps" for the browser or Files app when asked, then tap Install. Allow Location when the app asks (and Notifications for drivers).
+
+**Building:** `.github/workflows/android-apk.yml` builds and signs the APK on every push to `main` that changes `android/` (or from *Actions → Android APK → Run workflow*) and puts it on the `android-latest` release. It needs the repo secrets `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD`. Keep the keystore safe and never commit it: Android only installs an update signed with the same key. Locally, `android/build.sh` builds with the Android SDK's build-tools (no Gradle).
+
 ## Project structure
 
 ```
@@ -132,5 +143,7 @@ js/backend-demo.js          in-browser demo backend
 js/demo-seed.js             demo stops/routes/buses and bus simulator
 js/favs.js                  favourite lists + sync
 sw.js  manifest.webmanifest icons/   PWA
+js/app-bridge.js            GPS/notifications/screen-on from the Android app
+android/                    Android app (WebView wrapper) + build.sh
 database.rules.json  firebase.json  scripts/generate-codes.mjs
 ```
