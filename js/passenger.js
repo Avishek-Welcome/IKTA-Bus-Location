@@ -371,21 +371,33 @@ function evaluate(m, reg, lv) {
     stopName: stops[m.stopId]?.name || 'your stop', destName: stops[m.ids[m.j]]?.name || 'your destination',
   };
 }
-/** No destination chosen: minutes for a bus to reach the stop on its route nearest to the passenger */
-function towardsYou(reg, lv, key) {
+/**
+ * Distance from a bus to the passenger and the minutes it needs to reach them.
+ * Along the bus's saved road route to the point on it nearest the passenger when they are
+ * near that route; otherwise the straight-line distance, with time for ~1.3× that by road.
+ */
+const ROAD_FACTOR = 1.3;
+function toPassenger(reg, lv, key) {
+  if (!userPos) return null;
   const r = routes[key];
-  if (!r || !userPos) return null;
-  const path = pathOf(r);
-  if (path.ids.length < 2) return null;
-  let k = -1, best = Infinity;
-  path.ids.forEach((id, i) => { const d = haversine(userPos, stops[id]); if (d < best) { best = d; k = i; } });
-  if (best > 3000) return null; // this route doesn't come near you
-  const target = path.stopAlong[k];
-  const t = track(reg, key, path, lv, 0);
-  if (t.offset > 700) return null;
-  const dir = t.dir || Math.sign(target - t.along) || 1;
-  const eta = travelSec(path, t.along, target, dir, reg, lv);
-  return { eta, away: eta == null, stopName: stops[path.ids[k]].name, remaining: Math.max(0, (target - t.along) * dir), guessed: !t.dir };
+  const path = r && pathOf(r);
+  if (path && path.ids.length >= 2) {
+    const u = projectOnPath(path, userPos);
+    const t = track(reg, key, path, lv, 0);
+    if (u.offset <= 1500 && t.offset <= 700) {
+      const dir = t.dir || Math.sign(u.along - t.along) || 1;
+      const eta = travelSec(path, t.along, u.along, dir, reg, lv);
+      return { road: path.road, dist: Math.abs(u.along - t.along), eta, away: eta == null, offRoad: u.offset };
+    }
+  }
+  const d = haversine(userPos, lv);
+  return { road: false, straight: true, dist: d, eta: (d * ROAD_FACTOR) / busSpeed(reg, lv), away: false, offRoad: 0 };
+}
+const distText = (tp) => `${fmtDist(tp.dist)}${tp.road ? ' by road' : tp.straight ? ' away' : ''}`;
+function toYouLine(tp) {
+  if (!tp) return userPos ? '' : '<div class="eta-line">📍 Turn on location to see how far this bus is from you</div>';
+  if (tp.away) return `<div class="eta-line">📍 This bus has passed you and is ${fmtDist(tp.dist)} away, going the other way</div>`;
+  return `<div class="eta-line you">📍 <b>${distText(tp)}</b> from you · reaches you in <b>${mins(tp.eta)}</b> (${clock(tp.eta)})${tp.offRoad > 150 ? `<br><span class="small muted">You are ${fmtDist(tp.offRoad)} from its route</span>` : ''}</div>`;
 }
 
 // ---------- Rendering ----------
@@ -415,17 +427,18 @@ function busCard(b, reg, ev, extra = '') {
   const favItem = { type: 'bus', busKey: b.busKey, busName: b.busName, title: `Bus ${b.busName}` };
   const fav = isFav(favItem);
   const soon = ev && !ev.passed && ev.eta <= ALERT_SEC;
-  const ty = ev ? null : towardsYou(reg, lv, b.busKey || lv.busKey);
+  const picked = selReg === reg;
+  const ty = !ev || picked ? toPassenger(reg, lv, b.busKey || lv.busKey) : null;
   const right = ev
     ? (ev.passed ? '<div class="eta"><b style="font-size:15px">Passed</b><span>your stop</span></div>'
       : `<div class="eta ${soon ? 'soon' : ''}"><b>${mins(ev.eta)}</b><span>to ${esc(ev.stopName)} · ${fmtDist(Math.max(0, ev.remaining))}</span></div>`)
     : ty && !ty.away
-      ? `<div class="eta ${ty.eta <= ALERT_SEC ? 'soon' : ''}"><b>${mins(ty.eta)}</b><span>to ${esc(ty.stopName)} · ${fmtDist(ty.remaining)}</span></div>`
-      : `<div class="eta"><b style="font-size:17px">${fmtDist(userPos ? haversine(userPos, lv) : null)}</b><span>${ty?.away ? 'from you · going away' : 'from you'}</span></div>`;
-  // Picked bus: both times spelled out, with clock times
-  const times = ev && ev.destEta != null
-    ? `<div class="eta-line">${ev.passed ? '' : `🚏 <b>${mins(ev.eta)}</b> to ${esc(ev.stopName)} (${clock(ev.eta)}) · `}🏁 <b>${mins(ev.destEta)}</b> to ${esc(ev.destName)} (${clock(ev.destEta)})</div>`
-    : ty && !ty.away && focusReg === reg ? `<div class="eta-line">🚏 <b>${mins(ty.eta)}</b> to ${esc(ty.stopName)}, near you (${clock(ty.eta)})</div>` : '';
+      ? `<div class="eta ${ty.eta <= ALERT_SEC ? 'soon' : ''}"><b>${mins(ty.eta)}</b><span>to you · ${distText(ty)}</span></div>`
+      : `<div class="eta"><b style="font-size:17px">${fmtDist(ty ? ty.dist : null)}</b><span>${ty?.away ? 'from you · going away' : 'from you'}</span></div>`;
+  // Picked bus: distance from the passenger and time to reach them first; the trip times below
+  const trip = ev && ev.destEta != null
+    ? `<div class="eta-line">${ev.passed ? '' : `🚏 <b>${mins(ev.eta)}</b> to ${esc(ev.stopName)} (${clock(ev.eta)}) · `}🏁 <b>${mins(ev.destEta)}</b> to ${esc(ev.destName)} (${clock(ev.destEta)})</div>` : '';
+  const times = (picked ? toYouLine(ty) : '') + trip;
   return `<article class="bus-card ${ev?.passed ? 'passed' : ''} ${focusReg === reg ? 'focus' : ''} ${extra}" data-reg="${esc(reg)}">
     <div class="bus-top">
       <div class="bus-avatar" style="--c:${color}">${esc(b.busName)}</div>
@@ -589,7 +602,11 @@ function renderMarkers() {
       setBusSpeed(mk, lv.speed);
       glide(mk, { lat: lv.lat, lng: lv.lng });
     }
-    const pop = `<b>🚌 ${esc(b.busName)}</b> ${speedChip(lv.speed)}<br><span class="mono">${esc(b.regNo || reg)}</span><br>${userPos ? `${fmtDist(haversine(userPos, lv))} from you · ` : ''}${timeAgo(lv.ts)}${routes[key] && busFilter !== key && !sel.to ? `<br><button class="btn btn-sm btn-primary" style="margin-top:8px" data-busroute="${esc(key)}">Show route &amp; all ${esc(b.busName)} buses</button>` : ''}`;
+    // The chosen bus's popup shows its distance from the passenger and time to reach them
+    const tp = reg === selReg ? toPassenger(reg, lv, key) : null;
+    const you = tp ? (tp.away ? `${fmtDist(tp.dist)} away · passed you<br>` : `📍 <b>${distText(tp)}</b> from you<br>⏱️ Reaches you in <b>${mins(tp.eta)}</b> (${clock(tp.eta)})<br>`)
+      : userPos ? `${fmtDist(haversine(userPos, lv))} from you · ` : '';
+    const pop = `<b>🚌 ${esc(b.busName)}</b> ${speedChip(lv.speed)}<br><span class="mono">${esc(b.regNo || reg)}</span><br>${you}${timeAgo(lv.ts)}${routes[key] && busFilter !== key && !sel.to ? `<br><button class="btn btn-sm btn-primary" style="margin-top:8px" data-busroute="${esc(key)}">Show route &amp; all ${esc(b.busName)} buses</button>` : ''}`;
     if (mk._pop !== pop) { mk._pop = pop; mk.bindPopup(pop); }
   }
   for (const reg of Object.keys(markers)) if (!active.has(reg)) { busLayer.removeLayer(markers[reg]); delete markers[reg]; }
@@ -636,7 +653,7 @@ function renderStops() {
   }
 }
 map.on('zoomend moveend', debounce(renderStops, 150));
-map.on('click', () => { selReg = null; paintSpeedo(); });
+map.on('click', () => { selReg = null; paintSpeedo(); scheduleRender(); });
 map.on('popupopen', (e) => {
   const el = e.popup.getElement();
   el.querySelector('[data-setfrom]')?.addEventListener('click', (ev) => { sel.from = { type: 'stop', id: ev.target.dataset.setfrom }; paintInputs(); map.closePopup(); if (sel.to) runSearch(); });
