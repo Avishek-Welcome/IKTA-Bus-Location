@@ -1,9 +1,8 @@
 // IKTA Bus — Admin: generate one-time owner registration codes and audit their use.
-import { $, $$, esc, boot, toast, icon, setBusy, idToEmail, friendlyError, timeAgo, confirmBox, wirePasswordToggles } from './common.js';
+import { $, $$, esc, boot, toast, icon, setBusy, friendlyError, timeAgo, confirmBox, GOOGLE_G } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
 
 boot();
-wirePasswordToggles();
 let api, codes = {}, filter = 'all';
 
 // 10 unique characters drawn from letters, digits and Firebase-key-safe specials (no . $ # [ ] /)
@@ -20,15 +19,16 @@ export function generateCode() {
   }
 }
 
-$('#loginForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const f = e.currentTarget, err = f.querySelector('[data-err]'), btn = f.querySelector('button.btn-primary');
+// Admins sign in with Google; the account is an admin when admins/<its UID> is true in the database.
+$('#googleBtn').insertAdjacentHTML('afterbegin', `${GOOGLE_G} `);
+$('#googleBtn').addEventListener('click', async (e) => {
+  const btn = e.currentTarget, err = $('#loginCard [data-err]');
   err.textContent = ''; setBusy(btn, true, 'Signing in…');
-  try {
-    const u = await api.auth.signIn(idToEmail(f.userId.value, 'admin'), f.password.value);
-    if ((await api.get(`admins/${u.uid}`)) !== true) { await api.auth.signOut(); throw new Error('This account is not an administrator.'); }
-  } catch (ex) { err.textContent = friendlyError(ex); } finally { setBusy(btn, false); }
+  try { await api.auth.google(); } catch (ex) { err.textContent = friendlyError(ex); } finally { setBusy(btn, false); }
 });
+$('#copyUid').innerHTML = icon('copy');
+$('#copyUid').addEventListener('click', () => { navigator.clipboard?.writeText($('#naUid').textContent); toast('UID copied', 'ok'); });
+$('#otherAcct').addEventListener('click', () => api.auth.signOut());
 $('#logoutBtn').addEventListener('click', async () => { await api.auth.signOut(); location.reload(); });
 
 $('#genForm').addEventListener('submit', async (e) => {
@@ -73,13 +73,17 @@ function render() {
 (async () => {
   api = await connect('admin');
   await api.auth.ready();
-  if (isDemo) $('#demoHint').innerHTML = 'Demo admin: <b>admin</b> / <b>Admin@1234</b>';
+  if (isDemo) $('#demoHint').textContent = 'Demo mode: any Google sign-in opens the demo admin.';
   let off;
   api.auth.onChange(async (u) => {
     off?.();
     const isAdmin = u && (await api.get(`admins/${u.uid}`)) === true;
     $('#authView').classList.toggle('hidden', !!isAdmin);
     $('#dashView').classList.toggle('hidden', !isAdmin);
+    // signed in but not listed under admins: show the account so its UID can be added
+    $('#loginCard').classList.toggle('hidden', !!u && !isAdmin);
+    $('#notAdminCard').classList.toggle('hidden', !u || !!isAdmin);
+    if (u && !isAdmin) { $('#naEmail').textContent = u.email || '—'; $('#naUid').textContent = u.uid; }
     demoBanner();
     if (isAdmin) off = api.listen('secretCodes', (v) => { codes = v || {}; render(); });
   });
