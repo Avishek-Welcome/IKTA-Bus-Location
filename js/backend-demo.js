@@ -146,11 +146,12 @@ export async function create(_config, role) {
       onChange(cb) { authCbs.add(cb); queueMicrotask(() => cb(current)); return () => authCbs.delete(cb); },
       async signIn(email, pw) { await lag(); const rec = await verify(email, pw); setUser({ uid: rec.uid, email }); return current; },
       async create(email, pw) { await lag(); const uid = await createAccount(email, pw); setUser({ uid, email }); return current; },
-      async anon() {
-        if (current) return current;
-        setUser({ uid: `anon_${Math.random().toString(36).slice(2, 12)}`, isAnonymous: true });
-        return current;
-      },
+      // Demo passenger sign-in: no real Google or email; an anonymous demo user keeps its uid
+      async google() { await lag(); setUser({ uid: current?.isAnonymous ? current.uid : 'demo_google', email: 'demo.passenger@gmail.com' }); return { user: current, switched: false }; },
+      async googleIdToken() { return this.google(); },
+      async sendEmailLink(email) { await lag(); setUser({ uid: current?.isAnonymous ? current.uid : `demo_${authKey(email)}`, email }); return { instant: true }; },
+      isEmailLink: () => false,
+      async finishEmailLink() { return { user: current, switched: false }; },
       async signOut() { setUser(null); },
       async deleteSelf() {
         if (current?.email) { write(`_auth/${authKey(current.email)}`, null); persist(); }

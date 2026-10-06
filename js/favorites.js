@@ -2,6 +2,7 @@
 import { $, $$, esc, boot, toast, icon, modal, promptBox, confirmBox, keyOf, colorFor, LIVE_FRESH_MS } from './common.js';
 import { connect, demoBanner } from './api.js';
 import { loadFavs, saveFavs, favLink, attachFavSync, newListId } from './favs.js';
+import { requirePassenger } from './passenger-auth.js';
 
 boot();
 demoBanner();
@@ -96,7 +97,7 @@ render();
 (async () => {
   try {
     const api = await connect('passenger');
-    attachFavSync(api);
+    attachFavSync(api, await requirePassenger(api));
     api.listen('live', (v) => { live = v || {}; render(); });
     api.listen('routes', (v) => { routes = v || {}; $('#busNameList').innerHTML = Object.values(routes).map((r) => `<option value="${esc(r.busName)}">`).join(''); });
   } catch (e) { console.warn(e); }

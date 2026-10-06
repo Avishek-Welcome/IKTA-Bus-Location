@@ -8,7 +8,7 @@ const instances = {};
 /**
  * Connect with an isolated auth session per role ('passenger' | 'driver' | 'owner' | 'admin').
  * Each role uses its own named Firebase app, so a phone can be signed in as a
- * driver and still use the passenger map anonymously without the sessions clashing.
+ * driver and a signed-in passenger without the sessions clashing.
  */
 export function connect(role) {
   if (!instances[role]) {

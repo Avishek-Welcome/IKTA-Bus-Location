@@ -1,6 +1,7 @@
 // IKTA Bus — IKTA Coins wallet: balance, history, levels and the live crowd board.
 import { $, esc, boot, timeAgo, CROWD, colorFor, friendlyError } from './common.js';
 import { connect, demoBanner } from './api.js';
+import { requirePassenger } from './passenger-auth.js';
 
 boot();
 demoBanner();
@@ -45,7 +46,7 @@ function renderBoard(crowd, buses) {
 (async () => {
   try {
     const api = await connect('passenger');
-    const user = await api.auth.anon();
+    const user = await requirePassenger(api);
     api.listen(`passengers/${user.uid}`, renderWallet);
     let crowd = {}, buses = {};
     api.listen('crowd', (v) => { crowd = v; renderBoard(crowd, buses); });

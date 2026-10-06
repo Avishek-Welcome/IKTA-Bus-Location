@@ -555,6 +555,14 @@ button, a, .leaflet-control { touch-action: manipulation; }
 .auth-head .logo svg { width: 36px; height: 36px; }
 .auth-head h1 { font-size: 24px; }
 .auth-head p { color: var(--muted); margin: 6px 0 0; }
+/* Passenger sign-in screen: covers the passenger page (map, sheet, bottom nav), not the top bar */
+.auth-gate { position: fixed; inset: 0; z-index: 1100; overflow-y: auto; background: var(--bg); }
+body.gated .topbar { z-index: 1200; }
+body.gated { overflow: hidden; }
+.auth-gate .btn svg { flex: none; }
+.or-line { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
+.or-line::before, .or-line::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.profile-btn { font-weight: 800; font-size: 16px; color: var(--brand); }
 .saved-logins { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
 .saved-login {
   display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; border: 1.5px solid var(--line);

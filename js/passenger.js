@@ -6,6 +6,7 @@ import {
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
 import { addFav, removeFav, isFav, attachFavSync } from './favs.js';
+import { requirePassenger } from './passenger-auth.js';
 import { routePath } from './road.js';
 
 boot();
@@ -28,6 +29,7 @@ const ALERT_SEC = 10 * 60;      // alert when bus is ≤ 10 minutes away
 const MIN_SPEED = 3.3, MAX_SPEED = 16.7; // m/s: estimates assume 12–60 km/h on the road
 const DWELL_SEC = 20;           // typical halt at each bus stop on the way
 let api = null;
+let passenger = null; // the signed-in passenger (passenger-auth.js)
 let stops = store.get('ikta_cache_stops', {}) || {};
 let routes = store.get('ikta_cache_routes', {}) || {};
 let buses = {}, live = {}, crowd = {};
@@ -684,13 +686,13 @@ $('#sheetBody').addEventListener('click', async (e) => {
 });
 
 async function sendFeedback(reg, level, btn) {
-  if (!api) return toast('Still connecting…');
+  if (!api || !passenger) return toast('Still connecting…');
   const last = store.get('ikta_last_fb', 0);
   const wait = 120000 - (Date.now() - last);
   if (wait > 0) return toast(`Thanks! You can send another report in ${Math.ceil(wait / 1000)}s`);
   try {
     btn.disabled = true;
-    const user = await api.auth.anon();
+    const user = passenger;
     const coins = (await api.get(`passengers/${user.uid}/coins`)) || 0;
     const b = buses[reg] || live[reg] || {};
     const prev = crowd[reg];
@@ -752,7 +754,9 @@ if (busFilter && !sel.to) drawBusRoute();
     api.listen('crowd', (v) => { crowd = v || {}; scheduleRender(); });
     api.listen('live', (v) => { live = v || {}; scheduleRender(); });
     setInterval(scheduleRender, 5000); // refresh "x s ago" and drop stale buses
-    attachFavSync(api);
+    // The map data above is public and loads behind the sign-in screen
+    passenger = await requirePassenger(api);
+    attachFavSync(api, passenger);
     if (isDemo) (await import('./demo-seed.js')).startSimulation(api);
   } catch (e) {
     console.error(e);

@@ -111,7 +111,9 @@
         "history": {
           "$hid": { ".validate": "!data.exists() && newData.child('coins').val() === 5" }
         },
-        "favorites": { ".validate": "newData.hasChild('lists')" }
+        "favorites": { ".validate": "newData.hasChild('lists')" },
+        "email": { ".validate": "newData.isString() && auth.token.email_verified === true && newData.val() === auth.token.email" },
+        "createdAt": { ".validate": "!data.exists() && newData.val() === now" }
       }
     }
   }

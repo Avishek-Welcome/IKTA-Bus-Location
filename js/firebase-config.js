@@ -5,7 +5,9 @@
 //  your domains in Google Cloud Console → APIs & Services → Credentials.
 //
 //  Required in the Firebase console:
-//   • Authentication → Sign-in method: enable Email/Password AND Anonymous
+//   • Authentication → Sign-in method: enable Email/Password with "Email link" (drivers,
+//     owners, admin; email-link sign-in for passengers) and Google (passengers). Anonymous
+//     only until 30 Nov 2026, so old anonymous passengers can be carried over to their email.
 //   • Realtime Database: create it, then publish database.rules.json
 //   • Authentication → Settings → Authorized domains: add your hosting domain
 //

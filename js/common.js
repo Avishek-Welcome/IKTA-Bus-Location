@@ -286,7 +286,17 @@ export function friendlyError(e) {
     'auth/network-request-failed': 'Network error. Check your internet connection.',
     'auth/weak-password': 'Password is too weak.',
     'auth/operation-not-allowed': 'This sign-in method is not enabled in Firebase Authentication.',
-    'auth/admin-restricted-operation': 'Anonymous sign-in is disabled in Firebase Authentication.',
+    'auth/admin-restricted-operation': 'This sign-in method is disabled in Firebase Authentication.',
+    'auth/popup-closed-by-user': 'The Google sign-in window was closed. Please try again.',
+    'auth/cancelled-popup-request': 'The Google sign-in window was closed. Please try again.',
+    'auth/popup-blocked': 'Your browser blocked the Google sign-in window. Allow pop-ups for this site, or use "Email me a sign-in link".',
+    'auth/invalid-email': 'That email address does not look right.',
+    'auth/invalid-action-code': 'This sign-in link has expired or was already used. Ask for a new link.',
+    'auth/expired-action-code': 'This sign-in link has expired. Ask for a new link.',
+    'auth/unauthorized-domain': 'Sign-in is not allowed on this web address. Open https://ikta-bus.web.app instead.',
+    'auth/unauthorized-continue-uri': 'Sign-in is not allowed on this web address. Open https://ikta-bus.web.app instead.',
+    'auth/quota-exceeded': 'Too many sign-in emails were sent today. Please try again tomorrow or use Google.',
+    'auth/requires-recent-login': 'Please sign in again and repeat this.',
     PERMISSION_DENIED: 'Permission denied by database security rules.',
   };
   if (map[code]) return map[code];

@@ -27,7 +27,9 @@ export async function create(config, role, ver) {
   const { initializeApp, deleteApp, getApps } = appMod;
   const {
     getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut,
-    signInAnonymously, updatePassword, deleteUser, initializeAuth, inMemoryPersistence,
+    updatePassword, deleteUser, initializeAuth, inMemoryPersistence,
+    GoogleAuthProvider, EmailAuthProvider, signInWithPopup, linkWithPopup, linkWithCredential, signInWithCredential,
+    sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
   } = authMod;
   const {
     getDatabase, ref, onValue, get, set, update, push, remove, runTransaction, serverTimestamp, onDisconnect,
@@ -45,6 +47,26 @@ export async function create(config, role, ver) {
     const sec = initializeApp(config, `provision-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     const secAuth = initializeAuth(sec, { persistence: inMemoryPersistence });
     try { return await fn(secAuth); } finally { await signOut(secAuth).catch(() => {}); await deleteApp(sec).catch(() => {}); }
+  }
+
+  // Passenger sign-in (Google or an email link). An old anonymous session on this device is
+  // linked, so its uid keeps its coins and favourites; if the email already has an account,
+  // that account is used instead and `switched` is true.
+  async function upgrade(cred, popup) {
+    const u = auth.currentUser;
+    if (u?.isAnonymous) {
+      try {
+        const c = cred ? await linkWithCredential(u, cred) : await linkWithPopup(u, popup);
+        return { user: c.user, switched: false };
+      } catch (e) {
+        if (!/credential-already-in-use|email-already-in-use/.test(e.code || '')) throw e;
+        const again = cred || GoogleAuthProvider.credentialFromError(e);
+        if (!again) throw e;
+        return { user: (await signInWithCredential(auth, again)).user, switched: true };
+      }
+    }
+    const c = cred ? await signInWithCredential(auth, cred) : await signInWithPopup(auth, popup);
+    return { user: c.user, switched: !!u && u.uid !== c.user.uid };
   }
 
   let authReady;
@@ -73,9 +95,16 @@ export async function create(config, role, ver) {
       onChange: (cb) => onAuthStateChanged(auth, cb),
       signIn: (email, pw) => signInWithEmailAndPassword(auth, email, pw).then((c) => c.user),
       create: (email, pw) => createUserWithEmailAndPassword(auth, email, pw).then((c) => c.user),
-      anon: () => (auth.currentUser ? Promise.resolve(auth.currentUser) : signInAnonymously(auth).then((c) => c.user)),
       signOut: () => signOut(auth),
       deleteSelf: () => deleteUser(auth.currentUser),
+      google: () => upgrade(null, new GoogleAuthProvider()),
+      googleIdToken: (idToken) => upgrade(GoogleAuthProvider.credential(idToken)),
+      sendEmailLink: (email, url) => sendSignInLinkToEmail(auth, email, { url, handleCodeInApp: true }),
+      isEmailLink: (href) => isSignInWithEmailLink(auth, href),
+      // link = false signs in without linking (used after a link attempt used up the email link)
+      finishEmailLink: (email, href, link = true) => (link
+        ? upgrade(EmailAuthProvider.credentialWithLink(email, href))
+        : signInWithEmailLink(auth, email, href).then((c) => ({ user: c.user, switched: true }))),
     },
     provisionUser: (email, pw) => withSecondary(async (a) => (await createUserWithEmailAndPassword(a, email, pw)).user.uid),
     changeUserPassword: (email, oldPw, newPw) => withSecondary(async (a) => {
