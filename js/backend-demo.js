@@ -146,8 +146,14 @@ export async function create(_config, role) {
       onChange(cb) { authCbs.add(cb); queueMicrotask(() => cb(current)); return () => authCbs.delete(cb); },
       async signIn(email, pw) { await lag(); const rec = await verify(email, pw); setUser({ uid: rec.uid, email }); return current; },
       async create(email, pw) { await lag(); const uid = await createAccount(email, pw); setUser({ uid, email }); return current; },
-      // Demo passenger sign-in: no real Google or email; an anonymous demo user keeps its uid
-      async google() { await lag(); setUser({ uid: current?.isAnonymous ? current.uid : 'demo_google', email: 'demo.passenger@gmail.com' }); return { user: current, switched: false }; },
+      // Demo Google sign-in: no real Google. On the admin page it is the demo admin; a passenger's
+      // anonymous demo user keeps its uid
+      async google() {
+        await lag();
+        if (role === 'admin') setUser({ uid: 'demo_admin_uid', email: 'demo.admin@gmail.com' });
+        else setUser({ uid: current?.isAnonymous ? current.uid : 'demo_google', email: 'demo.passenger@gmail.com' });
+        return { user: current, switched: false };
+      },
       async googleIdToken() { return this.google(); },
       async sendEmailLink(email) { await lag(); setUser({ uid: current?.isAnonymous ? current.uid : `demo_${authKey(email)}`, email }); return { instant: true }; },
       isEmailLink: () => false,

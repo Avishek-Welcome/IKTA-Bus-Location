@@ -7,7 +7,7 @@ A mobile-first web app (PWA) for live bus tracking. It runs in any modern browse
 | **Passenger** (default) | `index.html`, `favorites.html`, `coins.html` | None. An anonymous session is created in the background for coins and favourites. |
 | **Driver** | `driver.html` | User ID and password created by the bus owner |
 | **Owner** | `owner.html` | Registers with a one-time secret code, then signs in with user ID and password |
-| Admin (code issuer) | `admin.html` | Firebase account listed under `/admins` |
+| Admin (code issuer) | `admin.html` | Google account listed under `/admins` |
 
 ## Features
 
@@ -63,7 +63,7 @@ npx serve .            # or: python3 -m http.server 8080
 |---|---|---|
 | Owner | `demo_owner` | `Demo@1234` |
 | Driver (bus WB 23A 9999) | `driver_dn12` | `Drive@1234` |
-| Admin | `admin` | `Admin@1234` |
+| Admin | press *Sign in with Google* (no real Google in demo mode) | |
 
 Unused demo secret codes: `K7@p2Q!x9M`, `A4%tR8&zW1`, `Z9*mB3+qL6`, `H2=vN5?cT8`, `P6~dF1^kY3`.
 Open `driver.html` in one tab and `index.html` in another to watch your own broadcast appear live.
@@ -77,8 +77,8 @@ Open `driver.html` in one tab and `index.html` in another to watch your own broa
    - User IDs are mapped internally to `userid@owner.ikta-bus.app` / `userid@driver.ikta-bus.app`, so users never need a real email address.
 3. **Realtime Database**: create a database, then publish `database.rules.json`, either through the console's Rules tab or with `firebase deploy --only database`.
 4. **Create an admin**:
-   - Under *Authentication → Users*, add a user, e.g. `admin@admin.ikta-bus.app` (sign in later with user ID `admin`), or any real email.
-   - In the database, add `admins/<that user's UID>: true`.
+   - Open `admin.html` and press **Sign in with Google** with the Google account that should be admin (the Google provider must be on under *Authentication → Sign-in method*).
+   - The page shows that account's email and UID. In the database, add `admins/<that UID>: true`, then reload the page.
 5. **Issue secret codes**:
    - Sign in at `admin.html` and press *Generate*, or
    - Run `node scripts/generate-codes.mjs 20 > codes.json` and import that file at `/secretCodes` while the node is still empty.

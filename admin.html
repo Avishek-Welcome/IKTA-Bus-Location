@@ -32,13 +32,17 @@
   <main class="auth-wrap hidden" id="authView">
     <div class="auth-card">
       <div class="auth-head"><div class="logo"><i data-icon="shield"></i></div><h1>Administrator</h1><p>Generate one-time owner registration codes</p></div>
-      <form class="card stack" id="loginForm">
-        <label class="field"><span>Admin user ID or email</span><input class="input" name="userId" autocomplete="username" autocapitalize="none" required></label>
-        <label class="field"><span>Password</span><div class="input-wrap"><input class="input" type="password" name="password" autocomplete="current-password" required><button type="button" class="addon" data-toggle-pw aria-label="Show password"></button></div></label>
+      <div class="card stack" id="loginCard">
+        <button class="btn btn-primary btn-block" id="googleBtn" type="button">Sign in with Google</button>
         <div class="error-text" data-err></div>
-        <button class="btn btn-primary btn-block">Sign in</button>
         <p class="hint center" id="demoHint"></p>
-      </form>
+      </div>
+      <div class="card stack hidden" id="notAdminCard">
+        <p><b>This Google account is not an administrator yet.</b></p>
+        <p class="small">Email: <b id="naEmail"></b><br>UID: <b class="mono" id="naUid"></b> <button type="button" class="mini-btn" id="copyUid" aria-label="Copy UID"></button></p>
+        <p class="small muted">To make it an admin, open the Firebase console → Realtime Database → Data, add a child under <b>admins</b> with this UID as the key and <b>true</b> as the value, then reload this page.</p>
+        <button class="btn btn-ghost btn-block" id="otherAcct" type="button">Use another Google account</button>
+      </div>
     </div>
   </main>
   <main class="page no-nav hidden" id="dashView">
