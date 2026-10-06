@@ -1,5 +1,5 @@
 // IKTA Bus service worker — instant repeat loads + offline map shell.
-const VERSION = 'ikta-v24';
+const VERSION = 'ikta-v25';
 const SHELL = [
   './', 'index.html', 'driver.html', 'owner.html', 'favorites.html', 'coins.html', 'admin.html',
   'css/app.css', 'js/map-boot.js', 'js/common.js', 'js/app-bridge.js', 'js/api.js', 'js/favs.js', 'js/passenger-auth.js', 'js/firebase-config.js',
