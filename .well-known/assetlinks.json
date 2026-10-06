@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.ikta.bus",
+      "sha256_cert_fingerprints": [
+        "9E:C3:D1:42:9B:A7:67:B5:66:68:89:A8:6D:C8:2F:F8:DA:26:D1:4A:54:F1:31:29:87:67:B8:E9:03:59:47:37",
+        "72:36:4D:A5:71:5A:B7:FE:09:EA:D4:FD:BE:3F:70:85:45:2F:81:1D:39:65:8B:33:BB:03:D0:4D:F3:B1:AA:D3"
+      ]
+    }
+  }
+]
