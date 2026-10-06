@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IKTA Bus — Privacy policy</title>
+  <meta name="description" content="How IKTA Bus (website and Android app) uses your data.">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <style>
+    :root { --bg: #eef2fb; --fg: #1e2a4a; --muted: #5b6785; --card: #fff; --brand: #2f5bff; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #070b17; --fg: #eef2ff; --muted: #9aa5c4; --card: #0f1528; } }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+    section { background: var(--card); border-radius: 16px; padding: 4px 20px 12px; margin: 14px 0; }
+    h1 { font-size: 28px; margin: 8px 0 0; } h2 { font-size: 19px; margin: 18px 0 6px; }
+    p, li { color: var(--fg); } .muted { color: var(--muted); } a { color: var(--brand); }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; } th, td { text-align: left; padding: 6px 6px; border-bottom: 1px solid rgba(127,127,127,.25); vertical-align: top; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>IKTA Bus — Privacy policy</h1>
+  <p class="muted">Last updated: 7 October 2026. Applies to the website https://ikta-bus.web.app and the IKTA Bus Android app (package com.ikta.bus).</p>
+
+  <section>
+    <h2>Who we are</h2>
+    <p>IKTA Bus shows where buses are, live, mostly around North Kolkata. It is run by <b>the IKTA Bus team</b>. Questions or requests about your data: <b><a href="mailto:welcome.avishek@gmail.com">welcome.avishek@gmail.com</a></b>.</p>
+    <p>We do not sell your data and do not show ads.</p>
+  </section>
+
+  <section>
+    <h2>Passengers</h2>
+    <ul>
+      <li><b>Sign-in and email.</b> To use the passenger pages you sign in with Google or with a link sent to your email. We keep your email address and a random account ID so your IKTA Coins, favourites and settings follow you to any phone. Your email is visible only to you.</li>
+      <li><b>Your location stays on your phone.</b> If you allow location, it is used on your phone to show where you are, which buses are near and how long they take to reach you. It is <b>not sent</b> to our servers.</li>
+      <li><b>Crowd reports and IKTA Coins.</b> When you report how crowded a bus is, we store the level (e.g. "Standing"), the time and your account ID. The level and time are shown to other users; your account ID is stored with the report but your name or email is never shown. Your coin balance and coin history (which bus, when, which level) are visible only to you.</li>
+      <li><b>Favourites.</b> Your saved routes and bus numbers are kept on your phone and copied to your account.</li>
+      <li><b>Arrival alerts</b> are worked out on your phone; nothing is sent.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Drivers</h2>
+    <ul>
+      <li><b>Account.</b> Your bus owner creates your driver login (user ID and password) and enters your name and phone number. Your owner can see these.</li>
+      <li><b>Live location while you share.</b> Only after you tap <i>Start sharing</i>, the app sends your bus's position, speed, direction and GPS accuracy about every 1–20 seconds, together with the bus name, registration number and your name. <b>Everyone using IKTA Bus can see this live position</b> — that is the purpose of the service. Only the latest position is stored; it is replaced by each new one, and we keep no route history. Sharing stops when you tap <i>Stop sharing</i> or sign out.</li>
+      <li><b>Location in the background.</b> While sharing, the Android app keeps sending your position with the screen off, shown by an ongoing "Sharing live" notification. The app never uses your location when you are not sharing, and does not ask for "allow all the time" location access.</li>
+      <li><b>Offline history.</b> If your phone has no network for 30 seconds or more while sharing, the app notes the start and end time and later sends this to your bus owner, with the bus and your name.</li>
+      <li><b>Saved login.</b> If you choose "Save user ID &amp; password", it is stored only on your phone (in the Android app, encrypted with the phone's secure key store).</li>
+      <li><b>Route editor.</b> When you search for a place or measure a road route, the text you type and the stop positions are sent to OpenStreetMap-based services (Photon by komoot, and OSRM routing servers).</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Bus owners and administrators</h2>
+    <p>Owners register with their name, user ID and phone number, and add their buses and drivers. These are visible to the owner; bus name, registration number and the owner's name are shown to passengers next to the bus.</p>
+  </section>
+
+  <section>
+    <h2>Services we use</h2>
+    <table>
+      <tr><th>Service</th><th>What for</th><th>What it receives</th></tr>
+      <tr><td>Google Firebase (Authentication, Realtime Database, Hosting)</td><td>Sign-in, storing the data above, the website</td><td>The data described above, your IP address</td></tr>
+      <tr><td>Google Analytics for Firebase (website pages)</td><td>Counting page visits to improve the service</td><td>Pages viewed, device and browser type, approximate region, a random device ID. Not your location or email.</td></tr>
+      <tr><td>Google sign-in</td><td>Signing in with Google</td><td>Handled by Google; we receive your email address and name</td></tr>
+      <tr><td>OpenFreeMap, OpenStreetMap map tiles</td><td>Drawing the map</td><td>The map area being viewed and your IP address</td></tr>
+      <tr><td>Google Fonts (website)</td><td>Text font</td><td>Your IP address</td></tr>
+      <tr><td>Photon (komoot), OSRM</td><td>Driver route editor only</td><td>Search text and stop positions</td></tr>
+    </table>
+    <p class="muted">All connections are encrypted (HTTPS). The Android app has no crash-reporting or advertising tools.</p>
+  </section>
+
+  <section>
+    <h2>How long we keep data</h2>
+    <ul>
+      <li>Live bus position: replaced by every new position; marked offline when sharing stops.</li>
+      <li>Passenger account, coins, history and favourites: until you delete your account.</li>
+      <li>Crowd reports: stored; only reports from the last 45 minutes are shown to others. When you delete your account, your coin history goes, but past reports stay without your email.</li>
+      <li>Driver accounts and offline history: until the bus owner deletes them.</li>
+    </ul>
+  </section>
+
+  <section id="delete">
+    <h2>Deleting your data</h2>
+    <ul>
+      <li><b>Passengers:</b> in the app or on https://ikta-bus.web.app, tap your profile letter (top right) → <b>Delete my account</b>. This deletes your email, coins, coin history and favourites at once.</li>
+      <li><b>Drivers:</b> ask your bus owner to remove your driver login, or write to us.</li>
+      <li><b>Owners, or anyone who cannot use the button:</b> email <b><a href="mailto:welcome.avishek@gmail.com">welcome.avishek@gmail.com</a></b> from your account's email address or with your user ID; we delete within 30 days.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Children</h2>
+    <p>IKTA Bus is not directed at children under 13.</p>
+  </section>
+
+  <section>
+    <h2>Changes</h2>
+    <p>If this policy changes, we update the date above and this page.</p>
+  </section>
+</main>
+</body>
+</html>
