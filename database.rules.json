@@ -98,6 +98,26 @@
       }
     },
 
+    "offlineLogs": {
+      "$regKey": {
+        ".read": "auth != null && root.child('buses/' + $regKey + '/ownerUid').val() === auth.uid",
+        "$id": {
+          ".write": "auth != null && ((!data.exists() && newData.exists() && root.child('drivers/' + auth.uid + '/regKey').val() === $regKey) || (!newData.exists() && root.child('buses/' + $regKey + '/ownerUid').val() === auth.uid))",
+          ".validate": "newData.hasChildren(['busName', 'busKey', 'regNo', 'driverName', 'driverUid', 'ownerUid', 'start', 'end', 'durationSec']) && newData.child('driverUid').val() === auth.uid && newData.child('ownerUid').val() === root.child('buses/' + $regKey + '/ownerUid').val() && newData.child('end').val() >= newData.child('start').val() && newData.child('durationSec').val() >= 30",
+          "busName": { ".validate": "newData.isString() && newData.val().length <= 40" },
+          "busKey": { ".validate": "newData.isString() && newData.val().length <= 40" },
+          "regNo": { ".validate": "newData.isString() && newData.val().length <= 40" },
+          "driverName": { ".validate": "newData.isString() && newData.val().length <= 80" },
+          "driverUid": { ".validate": "newData.isString()" },
+          "ownerUid": { ".validate": "newData.isString()" },
+          "start": { ".validate": "newData.isNumber()" },
+          "end": { ".validate": "newData.isNumber()" },
+          "durationSec": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
     "passengers": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",

@@ -10,7 +10,7 @@ wirePasswordToggles();
 attachStrength($('#regPw'), $('#regBar'), $('#regReq'));
 
 let api, user, owner, map;
-let busKeys = [], buses = {}, live = {}, creds = {}, crowd = {};
+let busKeys = [], buses = {}, live = {}, creds = {}, crowd = {}, offline = {};
 const unsubs = {};
 const fleetMarkers = {};
 
@@ -138,13 +138,68 @@ function syncBusListeners() {
       api.listen(`buses/${reg}`, (b) => { if (b) buses[reg] = b; else delete buses[reg]; render(); }),
       api.listen(`live/${reg}`, (l) => { if (l) live[reg] = l; else delete live[reg]; render(); }),
       api.listen(`crowd/${reg}`, (c) => { crowd[reg] = c; render(); }),
+      api.listen(`offlineLogs/${reg}`, (o) => { if (o) offline[reg] = o; else delete offline[reg]; renderOffline(); }),
     ];
   }
   for (const reg of Object.keys(unsubs)) {
     if (busKeys.includes(reg)) continue;
-    unsubs[reg].forEach((off) => off()); delete unsubs[reg]; delete buses[reg]; delete live[reg];
+    unsubs[reg].forEach((off) => off()); delete unsubs[reg]; delete buses[reg]; delete live[reg]; delete offline[reg];
   }
+  renderOffline();
 }
+
+// ---------- Offline history (offlineLogs/{regKey}, written by the driver's Android app) ----------
+const fmtDur = (sec) => {
+  sec = Math.round(sec);
+  if (sec < 60) return `${sec} s`;
+  if (sec < 3600) return `${Math.floor(sec / 60)} min ${String(sec % 60).padStart(2, '0')} s`;
+  return `${Math.floor(sec / 3600)} h ${String(Math.floor((sec % 3600) / 60)).padStart(2, '0')} min`;
+};
+const dayOf = (ts) => new Date(ts).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+const timeOf = (ts) => new Date(ts).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+/** Per day, newest first: how many times offline and the total offline time. */
+function offlineDays(list) {
+  const days = new Map();
+  for (const e of list) {
+    const k = new Date(e.start).toDateString();
+    const d = days.get(k) || { label: dayOf(e.start), count: 0, total: 0 };
+    d.count++; d.total += e.durationSec || 0;
+    days.set(k, d);
+  }
+  return [...days.values()];
+}
+function renderOffline() {
+  const el = $('#offlineHist');
+  if (!el) return;
+  const regs = busKeys.filter((r) => buses[r] && offline[r]);
+  if (!regs.length) { el.innerHTML = '<div class="empty">No offline periods recorded.</div>'; return; }
+  el.innerHTML = regs.map((reg) => {
+    const b = buses[reg];
+    const list = Object.entries(offline[reg]).map(([id, e]) => ({ id, ...e })).filter((e) => e.start).sort((x, y) => y.start - x.start);
+    const days = offlineDays(list);
+    return `<div class="card fleet-group" style="margin-bottom:12px">
+      <h3><span class="bus-avatar" style="--c:${colorFor(b.busKey || keyOf(b.busName))};width:38px;height:38px;border-radius:12px;font-size:11px">${esc(b.busName)}</span>
+        ${esc(b.busName)} <span class="mono small muted">${esc(b.regNo)}</span></h3>
+      <table class="table" style="width:100%;margin:6px 0 10px"><thead><tr><th style="text-align:left">Day</th><th>Times offline</th><th>Total offline</th></tr></thead><tbody>
+        ${days.map((d) => `<tr><td>${esc(d.label)}</td><td style="text-align:center">${d.count}</td><td style="text-align:center">${fmtDur(d.total)}</td></tr>`).join('')}
+      </tbody></table>
+      ${list.slice(0, 50).map((e) => `<div class="history-item">
+        <div class="fav-ico">📵</div>
+        <div><div style="font-weight:700">${esc(dayOf(e.start))}, ${timeOf(e.start)} – ${timeOf(e.end)} · ${fmtDur(e.durationSec || 0)}</div>
+          <div class="small muted">Driver: ${esc(e.driverName || '—')}</div></div>
+        <button class="icon-btn" style="margin-left:auto" data-offdel="${esc(reg)}|${esc(e.id)}" aria-label="Delete this entry">${icon('trash')}</button>
+      </div>`).join('')}
+      ${list.length > 50 ? `<p class="hint">Showing the latest 50 of ${list.length}.</p>` : ''}
+    </div>`;
+  }).join('');
+}
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-offdel]');
+  if (!b) return;
+  const [reg, id] = b.dataset.offdel.split('|');
+  if (!(await confirmBox('Delete entry?', 'This offline period will be removed from the history.', 'Delete', true))) return;
+  try { await api.remove(`offlineLogs/${reg}/${id}`); toast('Deleted', 'ok'); } catch (err) { toast(friendlyError(err), 'bad'); }
+});
 const isLive = (reg) => live[reg] && live[reg].online !== false && Date.now() - live[reg].ts < LIVE_FRESH_MS;
 
 let renderQ = false;
