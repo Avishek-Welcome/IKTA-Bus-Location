@@ -203,10 +203,10 @@
           ".validate": "newData.val() === now && (!data.exists() || now - data.val() >= 110000)"
         },
         "coins": {
-          ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 5 && newData.parent().child('lastFeedbackAt').val() === now"
+          ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1 && newData.parent().child('lastFeedbackAt').val() === now"
         },
         "history": {
-          "$hid": { ".validate": "!data.exists() && newData.child('coins').val() === 5" }
+          "$hid": { ".validate": "!data.exists() && newData.child('coins').val() === 1" }
         },
         "favorites": { ".validate": "newData.hasChild('lists')" },
         "email": { ".validate": "newData.isString() && auth.token.email_verified === true && newData.val() === auth.token.email" },

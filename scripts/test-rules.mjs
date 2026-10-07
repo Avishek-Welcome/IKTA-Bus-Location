@@ -88,5 +88,12 @@ await expect('bad email refused', 'PATCH', 'owners/o1', 'o1', { email: 'not an e
 await expect('admin reads all owners', 'GET', 'owners', 'adm', undefined, true);
 await expect('owner cannot read all owners', 'GET', 'owners', 'o1', undefined, false);
 
+// IKTA Coins: 1 coin per crowd report (was 5 until Oct 2026)
+const report = (uid, coins, hist) => ({ [`passengers/${uid}/coins`]: coins, [`passengers/${uid}/lastFeedbackAt`]: ts, [`passengers/${uid}/history/h1`]: { reg: 'R1', level: 'free', coins: hist, ts } });
+await expect('passenger earns 1 coin', 'PATCH', '', 'p1', report('p1', 1, 1), true);
+await expect('passenger cannot take 5 coins', 'PATCH', '', 'p2', report('p2', 5, 5), false);
+await expect('history must say 1 coin', 'PATCH', '', 'p3', report('p3', 1, 5), false);
+await expect('second report within 2 minutes refused', 'PATCH', '', 'p1', { 'passengers/p1/coins': 2, 'passengers/p1/lastFeedbackAt': ts }, false);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

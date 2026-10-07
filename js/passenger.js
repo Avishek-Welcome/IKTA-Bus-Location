@@ -700,13 +700,13 @@ async function sendFeedback(reg, level, btn) {
     await api.update('', {
       [`feedback/${reg}/${api.newKey(`feedback/${reg}`)}`]: { level, by: user.uid, ts: api.TS },
       [`crowd/${reg}`]: { level, ts: api.TS, count },
-      [`passengers/${user.uid}/coins`]: coins + 5,
+      [`passengers/${user.uid}/coins`]: coins + 1,
       [`passengers/${user.uid}/lastFeedbackAt`]: api.TS,
-      [`passengers/${user.uid}/history/${api.newKey(`passengers/${user.uid}/history`)}`]: { reg, regNo: b.regNo || reg, busName: b.busName || '', level, coins: 5, ts: api.TS },
+      [`passengers/${user.uid}/history/${api.newKey(`passengers/${user.uid}/history`)}`]: { reg, regNo: b.regNo || reg, busName: b.busName || '', level, coins: 1, ts: api.TS },
     });
     store.set('ikta_last_fb', Date.now());
     coinBurst(btn);
-    toast(`+5 IKTA Coins 🪙  Thanks for reporting ${CROWD[level].label.toLowerCase()}!`, 'coin');
+    toast(`+1 IKTA Coin 🪙  Thanks for reporting ${CROWD[level].label.toLowerCase()}!`, 'coin');
   } catch (e) {
     toast(friendlyError(e), 'bad');
   } finally { btn.disabled = false; }

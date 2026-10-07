@@ -19,7 +19,7 @@ A mobile-first web app (PWA) for live bus tracking. It runs in any modern browse
 - **Minutes to arrive**: each bus shows about how many minutes it needs to reach your boarding stop and your destination, with clock times. When you choose a bus (tap it on the map or its card), it shows how far that bus is from you, by road along its route when you are near the route, and the minutes it needs to reach you. This is on the passenger map only. The estimate is the road distance left ÷ the bus's recent moving speed (kept within 12–60 km/h, 20 km/h until it moves), plus about 20 s for each stop on the way.
 - **Bus number view**: pick a bus number (chips under the search, a bus marker's popup, or a favourite bus) to see its whole road route with every stop, the total km by road, and every bus of that number running now. ETAs and distances use the road route when the driver has saved one.
 - **10-minute alert**: a tone plays (Web Audio, no download needed) and the phone vibrates when a bus is 10 minutes or less from your stop. If the app is in the background, a system notification is shown instead. A bus that has already passed your stop never triggers an alert.
-- **Live crowd feedback** (🟢 Seats free · 🟡 Standing · 🔴 Crowded · ⛔ Packed). Each report earns **5 IKTA Coins**.
+- **Live crowd feedback** (🟢 Seats free · 🟡 Standing · 🔴 Crowded · ⛔ Packed). Each report earns **1 IKTA Coin**.
 - **Favourites**: you can keep several named lists of routes and bus numbers. They are saved on the device and synced to Firebase.
 
 **Driver**
