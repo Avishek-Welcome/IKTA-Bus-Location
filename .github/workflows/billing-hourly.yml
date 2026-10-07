@@ -1,0 +1,35 @@
+# Owner data balance: charge each owner's share of the last hour's Firebase use (scripts/billing).
+# Needs the repo secret BILLING_SERVICE_ACCOUNT (service account ikta-billing with
+# Firebase Realtime Database Admin + Monitoring Viewer).
+name: Billing (hourly)
+
+on:
+  schedule:
+    - cron: "12 * * * *" # 12 minutes past every hour, after Cloud Monitoring has the hour's figures
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only read and print, change nothing"
+        type: boolean
+        default: false
+
+concurrency:
+  group: billing-hourly
+  cancel-in-progress: false
+
+jobs:
+  bill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Tests
+        run: node --test scripts/billing/lib.test.mjs
+      - name: Charge the last hours
+        env:
+          BILLING_SERVICE_ACCOUNT: ${{ secrets.BILLING_SERVICE_ACCOUNT }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: node scripts/billing/billing-hourly.mjs

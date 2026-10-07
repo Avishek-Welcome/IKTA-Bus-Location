@@ -124,6 +124,11 @@
       "$ownerUid": { ".read": "auth != null && auth.uid === $ownerUid" }
     },
 
+    "billingRuns": {
+      ".read": "auth != null && root.child('admins/' + auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins/' + auth.uid).val() === true"
+    },
+
     "usageAdmin": {
       ".read": "auth != null && root.child('admins/' + auth.uid).val() === true",
       ".write": "auth != null && root.child('admins/' + auth.uid).val() === true"
