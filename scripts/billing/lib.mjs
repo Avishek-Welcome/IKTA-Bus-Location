@@ -14,6 +14,10 @@ export const DEFAULT_SETTINGS = {
   usd: { rtdbDownloadGB: 1, rtdbStorageGBMonth: 5, hostingGB: 0.15 },
   // Firebase free (Spark) monthly limits: 10 GB database downloads, 1 GB stored, 360 MB/day hosting
   free: { rtdbDownloadGB: 10, rtdbStorageGB: 1, hostingGB: 10.8 },
+  // Usage estimate per live write (Google gives per-project figures only with a billing account,
+  // so each owner's use is estimated from their buses' writes; the admin tunes these by comparing
+  // with the Usage graphs in the Firebase console)
+  est: { bytesPerUpdate: 200, watchers: 10, hostingBytesPerUpdate: 1000 },
 };
 
 /** Settings with defaults filled in, so a missing value never breaks a run. */
@@ -22,6 +26,20 @@ export function withDefaults(s = {}) {
     ...DEFAULT_SETTINGS, ...s,
     usd: { ...DEFAULT_SETTINGS.usd, ...(s.usd || {}) },
     free: { ...DEFAULT_SETTINGS.free, ...(s.free || {}) },
+    est: { ...DEFAULT_SETTINGS.est, ...(s.est || {}) },
+  };
+}
+
+/**
+ * Estimated Firebase use of [updates] live writes: each write is downloaded by the passengers
+ * watching the map (database), plus a share of website traffic.
+ */
+export function estimateUse(updates, settings) {
+  const { est } = withDefaults(settings);
+  return {
+    rtdbSentBytes: updates * est.bytesPerUpdate * est.watchers,
+    hostingSentBytes: updates * est.hostingBytesPerUpdate,
+    rtdbStoredBytes: 0,
   };
 }
 

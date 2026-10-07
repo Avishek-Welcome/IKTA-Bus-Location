@@ -1,13 +1,13 @@
 // IKTA Bus — hourly owner data balance job (GitHub Actions: .github/workflows/billing-hourly.yml).
-// For each finished UTC hour not done yet (up to 6 back): reads the project's real Firebase use
-// from Cloud Monitoring, splits it between owners by their buses' live writes (usageCounts),
-// charges their balance and sets billingStatus; at Rs 0 the owner's buses are set offline.
+// For each finished UTC hour not done yet (up to 6 back): estimates each owner's Firebase use
+// from their buses' live writes (usageCounts) and the admin's factors (Google gives real usage
+// figures only to projects with a billing account), prices it, charges the balance and sets
+// billingStatus; at Rs 0 the owner's buses are set offline.
 // Env: BILLING_SERVICE_ACCOUNT = the service account JSON. DRY_RUN=1 = read and print only.
 // No npm packages: the service account signs its own token with Node's crypto.
 import { createSign } from 'node:crypto';
-import { withDefaults, DEFAULT_SETTINGS, priceHour, splitByUpdates, applyCharge, hourKey, hourStart, round4 } from './lib.mjs';
+import { withDefaults, DEFAULT_SETTINGS, priceHour, estimateUse, applyCharge, hourKey, hourStart, round4 } from './lib.mjs';
 
-const PROJECT = 'ikta-bus';
 const DB = 'https://ikta-bus-default-rtdb.firebaseio.com';
 const MAX_HOURS_BACK = 6;
 const DRY = process.env.DRY_RUN === '1';
@@ -62,36 +62,8 @@ async function dbUpdateWithEtag(path, fn) {
   throw new Error(`${path}: changed too often, try the next run`);
 }
 
-// ---------- Cloud Monitoring ----------
-async function metric(type, startMs, endMs, aligner, period = 3600) {
-  const q = new URLSearchParams({
-    filter: `metric.type = "${type}"`,
-    'interval.startTime': new Date(startMs).toISOString(), 'interval.endTime': new Date(endMs).toISOString(),
-    'aggregation.alignmentPeriod': `${period}s`, 'aggregation.perSeriesAligner': aligner, 'aggregation.crossSeriesReducer': 'REDUCE_SUM',
-  });
-  const r = await fetch(`https://monitoring.googleapis.com/v3/projects/${PROJECT}/timeSeries?${q}`, { headers: auth() });
-  if (!r.ok) throw new Error(`monitoring ${type}: ${r.status} ${await r.text()}`);
-  const pts = ((await r.json()).timeSeries || []).flatMap((s) => s.points || []);
-  // Newest point first in the API's answer
-  const v = (p) => Number(p.value.int64Value ?? p.value.doubleValue ?? 0);
-  return { sum: pts.reduce((a, p) => a + v(p), 0), latest: pts.length ? v(pts[0]) : 0 };
-}
-async function usageOfHour(start, end) {
-  const [sent, hosting, stored] = await Promise.all([
-    metric('firebasedatabase.googleapis.com/network/sent_bytes_count', start, end, 'ALIGN_SUM'),
-    metric('firebasehosting.googleapis.com/network/sent_bytes_count', start, end, 'ALIGN_SUM'),
-    // Storage is measured now and then: use the latest reading of the last 2 days
-    metric('firebasedatabase.googleapis.com/storage/total_bytes', end - 2 * 86400000, end, 'ALIGN_MEAN'),
-  ]);
-  return { rtdbSentBytes: sent.sum, hostingSentBytes: hosting.sum, rtdbStoredBytes: stored.latest };
-}
-
 // ---------- One hour ----------
 async function runHour(key, settings, buses, ownerUids) {
-  const start = hourStart(key), end = start + 3600000;
-  const use = await usageOfHour(start, end);
-  const price = priceHour(use, settings);
-
   // Live writes per owner from usageCounts/{regKey}/{key}
   const updatesByOwner = {};
   for (const [reg, b] of Object.entries(buses)) {
@@ -99,27 +71,34 @@ async function runHour(key, settings, buses, ownerUids) {
     const n = Number(await dbGet(`usageCounts/${reg}/${key}`)) || 0;
     if (n) updatesByOwner[b.ownerUid] = (updatesByOwner[b.ownerUid] || 0) + n;
   }
-  const split = splitByUpdates(updatesByOwner, price);
-  console.log(`${key}: rtdb ${use.rtdbSentBytes} B sent, ${use.rtdbStoredBytes} B stored, hosting ${use.hostingSentBytes} B; `
-    + `raw Rs ${price.rawInr.toFixed(4)}, charge Rs ${price.chargeInr.toFixed(4)}; owners with writes: ${Object.keys(split).length}`);
+  const totalUpdates = Object.values(updatesByOwner).reduce((a, n) => a + n, 0);
+  console.log(`${key}: ${totalUpdates} live writes from ${Object.keys(updatesByOwner).length} owner(s)`);
 
-  let chargedInr = 0;
+  let rawInr = 0, chargedInr = 0;
   for (const uid of ownerUids) {
-    const part = split[uid];
+    const updates = updatesByOwner[uid] || 0;
     const had = await dbGet(`billing/${uid}`);
-    if (!part && had) continue; // nothing to charge and already set up
+    if (!updates && had) continue; // nothing to charge and already set up
+    const use = estimateUse(updates, settings);
+    const price = priceHour(use, settings);
     let result;
     const next = await dbUpdateWithEtag(`billing/${uid}`, (cur) => {
-      result = applyCharge(cur, part ? part.chargeInr : 0, key, settings);
+      result = applyCharge(cur, price.chargeInr, key, settings);
       return { ...result.billing, updatedAt: Date.now() };
     });
     if (!had) console.log(`  ${uid}: new balance with free credit Rs ${next.freeCreditInr}`);
     await dbWrite('PUT', `billingStatus/${uid}`, { status: result.status, pctLeft: result.pctLeft, updatedAt: Date.now() });
-    if (part) {
-      chargedInr += part.chargeInr;
-      await dbWrite('PUT', `usage/${uid}/${key}`, { updates: part.updates, share: part.share, costInr: round4(part.chargeInr), balanceAfterInr: next.balanceInr });
-      await dbWrite('PUT', `usageAdmin/${uid}/${key}`, { rawCostInr: round4(part.rawInr), markupInr: round4(part.markupInr), costInr: round4(part.chargeInr) });
-      console.log(`  ${uid}: ${part.updates} writes, Rs ${part.chargeInr.toFixed(4)} → balance Rs ${next.balanceInr} (${result.status})`);
+    if (updates) {
+      rawInr += price.rawInr; chargedInr += price.chargeInr;
+      const mb = (b) => round4(b / 1e6);
+      await dbWrite('PUT', `usage/${uid}/${key}`, {
+        updates, databaseMB: mb(use.rtdbSentBytes), websiteMB: mb(use.hostingSentBytes),
+        costInr: round4(price.chargeInr), balanceAfterInr: next.balanceInr,
+      });
+      await dbWrite('PUT', `usageAdmin/${uid}/${key}`, {
+        rawCostInr: round4(price.rawInr), markupInr: round4(price.chargeInr - price.rawInr), costInr: round4(price.chargeInr),
+      });
+      console.log(`  ${uid}: ${updates} writes, Rs ${price.chargeInr.toFixed(4)} -> balance Rs ${next.balanceInr} (${result.status})`);
     }
     // Balance used up: this owner's buses go offline (the rules already refuse new positions)
     if (result.status === 'empty') {
@@ -134,11 +113,10 @@ async function runHour(key, settings, buses, ownerUids) {
     }
   }
   await dbWrite('PUT', `billingRuns/${key}`, {
-    at: Date.now(), ...use, rawInr: round4(price.rawInr), chargeInr: round4(price.chargeInr),
-    chargedInr: round4(chargedInr), owners: Object.keys(split).length,
+    at: Date.now(), updates: totalUpdates, owners: Object.keys(updatesByOwner).length,
+    rawInr: round4(rawInr), chargedInr: round4(chargedInr),
   });
 }
-
 // ---------- Main ----------
 TOKEN = await accessToken();
 let settings = await dbGet('settings/billing');
@@ -147,6 +125,7 @@ if (!settings) {
   await dbWrite('PUT', 'settings/billing', settings);
   console.log('settings/billing created with defaults');
 }
+if (!settings.est) await dbWrite('PUT', 'settings/billing/est', DEFAULT_SETTINGS.est); // added after the first version
 settings = withDefaults(settings);
 const buses = (await dbGet('buses')) || {};
 const ownerUids = Object.keys((await dbGet('owners', '?shallow=true')) || {});

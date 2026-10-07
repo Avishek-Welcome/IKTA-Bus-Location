@@ -1,7 +1,7 @@
 // Run: node --test scripts/billing
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { priceHour, splitByUpdates, freeStartCredit, statusFor, applyCharge, hourKey, hourStart, monthOf, withDefaults } from './lib.mjs';
+import { priceHour, splitByUpdates, freeStartCredit, statusFor, applyCharge, hourKey, hourStart, monthOf, withDefaults, estimateUse } from './lib.mjs';
 
 const S = withDefaults({}); // markup 50 %, Rs 88 per USD
 const near = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, `${a} != ${b}`);
@@ -26,6 +26,17 @@ test('price of one hour', () => {
   // Markup set by the admin
   near(priceHour({ rtdbSentBytes: 1e9 }, { markupPct: 100 }).chargeInr, 176);
   near(priceHour({}, S).chargeInr, 0);
+});
+
+test('estimated use of live writes', () => {
+  // 1000 writes x 200 B x 10 watchers = 2 MB database; 1000 x 1000 B = 1 MB website
+  assert.deepEqual(estimateUse(1000, S), { rtdbSentBytes: 2e6, hostingSentBytes: 1e6, rtdbStoredBytes: 0 });
+  // Rs: 0.002 GB x 1 USD + 0.001 GB x 0.15 USD = 0.00215 USD = Rs 0.1892; +50 % = Rs 0.2838
+  const p = priceHour(estimateUse(1000, S), S);
+  near(p.rawInr, 0.1892); near(p.chargeInr, 0.2838);
+  // The admin's factors
+  assert.equal(estimateUse(10, { est: { watchers: 50 } }).rtdbSentBytes, 10 * 200 * 50);
+  assert.deepEqual(estimateUse(0, S), { rtdbSentBytes: 0, hostingSentBytes: 0, rtdbStoredBytes: 0 });
 });
 
 test('split by live writes', () => {
