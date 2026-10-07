@@ -103,6 +103,12 @@ h1, h2, h3, h4 { margin: 0; letter-spacing: -.02em; }
   .role-switch a { padding: 8px 11px; }
   .role-switch a.active span { display: inline; }
 }
+/* Small phones: with four roles (and the passenger's profile button) icons only, so the
+   theme button still fits; the active role keeps its highlight */
+@media (max-width: 400px) {
+  .role-switch a.active span { display: none; }
+  .role-switch a { padding: 8px 10px; }
+}
 
 /* ---------- Bottom navigation (passenger pages) ---------- */
 .bottom-nav {

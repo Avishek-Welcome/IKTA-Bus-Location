@@ -1,5 +1,5 @@
 // IKTA Bus — Admin: generate one-time owner registration codes and audit their use.
-import { $, $$, esc, boot, toast, icon, setBusy, friendlyError, timeAgo, confirmBox, GOOGLE_G } from './common.js';
+import { $, $$, esc, boot, toast, icon, setBusy, friendlyError, timeAgo, confirmBox, GOOGLE_G, googleSignIn, canGoogleSignIn } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
 
 boot();
@@ -24,8 +24,13 @@ $('#googleBtn').insertAdjacentHTML('afterbegin', `${GOOGLE_G} `);
 $('#googleBtn').addEventListener('click', async (e) => {
   const btn = e.currentTarget, err = $('#loginCard [data-err]');
   err.textContent = ''; setBusy(btn, true, 'Signing in…');
-  try { await api.auth.google(); } catch (ex) { err.textContent = friendlyError(ex); } finally { setBusy(btn, false); }
+  try { await googleSignIn(api); } catch (ex) { err.textContent = friendlyError(ex); } finally { setBusy(btn, false); }
 });
+// An app or in-app browser that can't show Google sign-in (older IKTA Bus app, WhatsApp…)
+if (!canGoogleSignIn) {
+  $('#googleBtn').disabled = true;
+  $('#loginCard [data-err]').textContent = 'Google sign-in does not work in this app. Open https://ikta-bus.web.app/admin.html in Chrome, or update the IKTA Bus app.';
+}
 $('#copyUid').innerHTML = icon('copy');
 $('#copyUid').addEventListener('click', () => { navigator.clipboard?.writeText($('#naUid').textContent); toast('UID copied', 'ok'); });
 $('#otherAcct').addEventListener('click', () => api.auth.signOut());

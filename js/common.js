@@ -51,6 +51,26 @@ export const ICONS = {
 export const icon = (name) => ICONS[name] || '';
 // Google's four-colour "G" for "Continue with Google" buttons
 export const GOOGLE_G = '<svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true" style="background:#fff;border-radius:50%;padding:2px"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.8 6C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.1-10 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.8-6a24 24 0 0 0 0 21.4l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.8 6C6.6 42.6 14.6 48 24 48z"/></svg>';
+
+// ---------- Google sign-in (passengers and admins) ----------
+// Google refuses its sign-in page inside apps' WebViews and in-app browsers (WhatsApp,
+// Facebook…). The Android app shows its own account picker through IKTAApp.googleSignIn and
+// hands back an ID token instead.
+const appBridge = window.IKTAApp;
+export const inAppView = !!appBridge || /; wv\)|FBAN|FBAV|Instagram|Line\//.test(navigator.userAgent);
+export const canGoogleSignIn = !inAppView || typeof appBridge?.googleSignIn === 'function';
+function nativeGoogleToken() {
+  return new Promise((resolve, reject) => {
+    window.IKTAApp_onGoogleToken = resolve;
+    window.IKTAApp_onGoogleError = (msg) => reject(Object.assign(new Error(msg || 'Google sign-in was cancelled.'), { code: 'app/google' }));
+    appBridge.googleSignIn();
+  });
+}
+/** Signs in to [api] with Google: the app's picker inside the Android app, else Google's pop-up. */
+export async function googleSignIn(api) {
+  return typeof appBridge?.googleSignIn === 'function' ? api.auth.googleIdToken(await nativeGoogleToken()) : api.auth.google();
+}
+
 export function hydrateIcons(root = document) {
   $$('[data-icon]', root).forEach((el) => { if (!el.firstElementChild) el.innerHTML = icon(el.dataset.icon); });
 }

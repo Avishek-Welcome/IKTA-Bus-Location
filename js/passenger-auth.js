@@ -2,17 +2,15 @@
 // email link), so IKTA Coins, favourites and settings follow the email to every phone.
 // No new anonymous users are made; an old anonymous session on this device is carried over
 // (linked) until the Anonymous provider is switched off (30 Nov 2026).
-import { $, esc, store, toast, modal, confirmBox, promptBox, hydrateIcons, friendlyError, GOOGLE_G } from './common.js';
+import {
+  $, esc, store, toast, modal, confirmBox, promptBox, hydrateIcons, friendlyError, GOOGLE_G,
+  googleSignIn, inAppView as embedded, canGoogleSignIn as canGoogle,
+} from './common.js';
 import { clearLocalFavs } from './favs.js';
 
 const EMAIL_KEY = 'ikta_signin_email'; // the address an email link was sent to, needed to finish it
 const NOLINK_KEY = 'ikta_signin_nolink'; // a link attempt used up the email link: next time just sign in
 const DELETE_KEY = 'ikta_delete_after_signin';
-const app = window.IKTAApp;
-// Google refuses its sign-in page inside apps' WebViews and in-app browsers (WhatsApp, Facebook…);
-// the Android app gets a native Google picker through the bridge instead
-const embedded = !!app || /; wv\)|FBAN|FBAV|Instagram|Line\//.test(navigator.userAgent);
-const canGoogle = !embedded || typeof app?.googleSignIn === 'function';
 
 /** Resolves with the signed-in passenger, showing the sign-in screen first if needed. */
 export async function requirePassenger(api) {
@@ -91,7 +89,7 @@ function showGate(api) {
 
     $('#gGoogle', g)?.addEventListener('click', async () => {
       err.textContent = ''; busy(true);
-      try { await done(app?.googleSignIn ? await api.auth.googleIdToken(await nativeGoogle()) : await api.auth.google()); }
+      try { await done(await googleSignIn(api)); }
       catch (e) { err.textContent = friendlyError(e); } finally { busy(false); }
     });
     $('#gEmail', g).addEventListener('submit', async (e) => {
@@ -131,14 +129,6 @@ function showGate(api) {
   });
 }
 
-// The Android app shows its own Google account picker and hands back an ID token
-function nativeGoogle() {
-  return new Promise((resolve, reject) => {
-    window.IKTAApp_onGoogleToken = resolve;
-    window.IKTAApp_onGoogleError = (msg) => reject(Object.assign(new Error(msg || 'Google sign-in was cancelled.'), { code: 'app/google' }));
-    app.googleSignIn();
-  });
-}
 
 function addProfileButton(api, user) {
   if ($('#profileBtn')) return;
