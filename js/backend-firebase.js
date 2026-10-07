@@ -32,7 +32,7 @@ export async function create(config, role, ver) {
     sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
   } = authMod;
   const {
-    getDatabase, ref, onValue, get, set, update, push, remove, runTransaction, serverTimestamp, onDisconnect,
+    getDatabase, ref, onValue, get, set, update, push, remove, runTransaction, serverTimestamp, onDisconnect, increment,
   } = dbMod;
 
   const app = getApps().find((a) => a.name === role) || initializeApp(config, role);
@@ -81,6 +81,8 @@ export async function create(config, role, ver) {
     set: (path, v) => set(r(path), v),
     update: (path, v) => update(r(path), v),
     remove: (path) => remove(r(path)),
+    /** Adds n on the server (no read first), e.g. usage counters. */
+    increment: (path, n) => set(r(path), increment(n)),
     newKey: (path) => push(r(path)).key,
     async push(path, v) { const k = push(r(path)); await set(k, v); return k.key; },
     async transaction(path, fn) {

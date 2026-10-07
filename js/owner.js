@@ -49,17 +49,51 @@ $('#checkCodeBtn').addEventListener('click', async () => {
   catch (e) { hint.innerHTML = `<span style="color:var(--bad)">✖ ${esc(e.message)}</span>`; }
 });
 
+// ---------- Contact details (phone + email, for quick contact about the data balance) ----------
+const PHONE_RE = /^\+?[0-9\s-]{8,16}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+async function editContact(first = false) {
+  const res = await modal({
+    title: first ? 'Add your email' : 'Phone and email',
+    html: `${first ? '<p class="muted small" style="margin-top:0">IKTA Bus uses it to send you messages about your account and data balance.</p>' : ''}
+      <form class="stack">
+        <label class="field"><span>Phone number</span><input class="input" name="phone" type="tel" inputmode="tel" value="${esc(owner.phone || '')}"></label>
+        <label class="field"><span>Email</span><input class="input" name="email" type="email" autocapitalize="none" spellcheck="false" value="${esc(owner.email || '')}" placeholder="you@gmail.com"></label>
+      </form>`,
+    okText: 'Save', cancelText: first ? 'Later' : 'Cancel',
+    validate: (box) => {
+      const phone = box.querySelector('[name=phone]').value.trim(), email = box.querySelector('[name=email]').value.trim().toLowerCase();
+      if (!PHONE_RE.test(phone)) throw new Error('Please enter a valid phone number.');
+      if (!EMAIL_RE.test(email)) throw new Error('Please enter a valid email address.');
+      return { phone, email };
+    },
+  });
+  if (!res) return;
+  try {
+    await api.update(`owners/${user.uid}`, res);
+    Object.assign(owner, res);
+    paintOwner();
+    toast('Saved', 'ok');
+  } catch (e) { toast(friendlyError(e), 'bad'); }
+}
+function paintOwner() {
+  $('#ownerMeta').textContent = `@${owner.userId} · ${owner.phone}${owner.email ? ` · ${owner.email}` : ''}`;
+}
+$('#editProfileBtn').addEventListener('click', () => editContact());
+
 // ---------- Register ----------
 $('#regForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.currentTarget, err = f.querySelector('[data-err]'), btn = f.querySelector('button.btn-primary');
   const v = Object.fromEntries(new FormData(f));
   const code = v.code.trim(), userId = v.userId.trim().toLowerCase(), name = v.name.trim(), phone = v.phone.trim();
+  const email = (v.email || '').trim().toLowerCase();
   err.textContent = '';
   try {
     if (!name) throw new Error('Please enter your name.');
     if (!USER_ID_RE.test(userId)) throw new Error('User ID: 4–20 characters, lowercase letters, numbers, _ or -.');
-    if (!/^\+?[0-9\s-]{8,16}$/.test(phone)) throw new Error('Please enter a valid phone number.');
+    if (!PHONE_RE.test(phone)) throw new Error('Please enter a valid phone number.');
+    if (!EMAIL_RE.test(email)) throw new Error('Please enter a valid email address.');
     if (!passwordOk(v.password)) throw new Error('Password does not meet the requirements.');
     if (v.password !== v.password2) throw new Error('Passwords do not match.');
     setBusy(btn, true, 'Creating account…');
@@ -81,7 +115,7 @@ $('#regForm').addEventListener('submit', async (e) => {
       throw new Error('This secret code has just been used by someone else.');
     }
     await api.update('', {
-      [`owners/${u.uid}`]: { name, userId, phone, code, createdAt: api.TS },
+      [`owners/${u.uid}`]: { name, userId, phone, email, code, createdAt: api.TS },
       [`usernames/${userId}`]: { uid: u.uid, role: 'owner' },
     });
     toast('🎉 Welcome to IKTA Bus! Your owner account is ready.', 'ok');
@@ -124,7 +158,9 @@ async function enterDash(u) {
   demoBanner();
   $('#ownerAvatar').textContent = owner.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
   $('#ownerName').textContent = owner.name;
-  $('#ownerMeta').textContent = `@${owner.userId} · ${owner.phone}`;
+  paintOwner();
+  // Owners who registered before email was asked for: ask once per visit until it is set
+  if (!owner.email) setTimeout(() => editContact(true), 800);
   api.listen(`owners/${u.uid}/buses`, (v) => { busKeys = Object.keys(v || {}); syncBusListeners(); render(); });
   api.listen(`ownerDrivers/${u.uid}`, (v) => { creds = v || {}; render(); });
   api.listen('routes', (r) => { $('#busNames').innerHTML = Object.values(r || {}).map((x) => `<option value="${esc(x.busName)}">`).join(''); });

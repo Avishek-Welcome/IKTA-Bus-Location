@@ -65,6 +65,7 @@
             <label class="field"><span>User ID</span><input class="input" name="userId" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="4–20 chars" required></label>
             <label class="field"><span>Phone number</span><input class="input" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+91 98xxxxxxx" required></label>
           </div>
+          <label class="field"><span>Email (for messages about your account and data balance)</span><input class="input" name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="you@gmail.com" required></label>
           <label class="field"><span>Password</span><div class="input-wrap"><input class="input" type="password" name="password" id="regPw" autocomplete="new-password" required><button type="button" class="addon" data-toggle-pw aria-label="Show password"></button></div>
             <div class="strength"><i id="regBar"></i></div>
             <ul class="req-list" id="regReq"><li data-req="len">8+ characters</li><li data-req="upper">Uppercase letter</li><li data-req="lower">Lowercase letter</li><li data-req="digit">Number</li><li data-req="special">Special character</li></ul>
@@ -88,6 +89,7 @@
           <p id="ownerMeta" style="margin:2px 0 0"></p>
         </div>
         <span class="spacer"></span>
+        <button class="icon-btn" id="editProfileBtn" aria-label="Edit phone and email" style="background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.3);color:#fff"><i data-icon="edit"></i></button>
         <button class="icon-btn" id="logoutBtn" aria-label="Sign out" style="background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.3);color:#fff"><i data-icon="logout"></i></button>
       </div>
       <div class="kpis">

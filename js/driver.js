@@ -343,9 +343,25 @@ function maybeSend(force = false) {
   const info = { dir, busName: profile.busName, busKey: profile.busKey, regNo: profile.regNo, driverUid: user.uid, driver: profile.name || profile.userId };
   const sig = JSON.stringify(info), full = sig !== sentInfo;
   (full ? api.set(`live/${profile.regKey}`, { ...pos, ...info }) : api.update(`live/${profile.regKey}`, pos))
-    .then(() => { if (full) sentInfo = sig; sentCount++; $('#stSent').textContent = sentCount; })
+    .then(() => { if (full) sentInfo = sig; sentCount++; $('#stSent').textContent = sentCount; countUse(now); })
     .catch((e) => { sentInfo = null; toast(friendlyError(e), 'bad'); });
 }
+
+// ---------- Usage counter (owner data balance) ----------
+// Confirmed live writes per UTC hour, added to usageCounts/{regKey}/{yyyyMMddHH} once a minute.
+// The hourly billing job splits the project's real Firebase use between owners by these counts.
+const pendingUse = {};
+const hourKey = (ts) => new Date(ts).toISOString().slice(0, 13).replace(/\D/g, '');
+function countUse(ts) { const k = hourKey(ts); pendingUse[k] = (pendingUse[k] || 0) + 1; }
+function flushUse() {
+  if (!api || !profile) return;
+  for (const [k, n] of Object.entries(pendingUse)) {
+    delete pendingUse[k];
+    api.increment(`usageCounts/${profile.regKey}/${k}`, n).catch(() => { pendingUse[k] = (pendingUse[k] || 0) + n; });
+  }
+}
+setInterval(flushUse, 60000);
+addEventListener('pagehide', flushUse);
 async function startBroadcast() {
   startGeo();
   startCompass(); // this tap lets iOS ask for compass access (the phone's top edge is the bus's head)
@@ -371,6 +387,7 @@ function stopBroadcast(notify = true) {
   $('#liveBadge').className = 'badge'; $('#liveBadge').textContent = 'Offline';
   api?.update(`live/${profile.regKey}`, { online: false, ts: Date.now() }).catch(() => {});
   api?.onDisconnectCancel(`live/${profile.regKey}`).catch(() => {});
+  flushUse();
   wakeLock?.release().catch(() => {}); wakeLock = null; paintWake();
   if (notify) toast('Location sharing stopped');
 }

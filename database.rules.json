@@ -25,10 +25,12 @@
     },
 
     "owners": {
+      ".read": "auth != null && root.child('admins/' + auth.uid).val() === true",
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid",
-        ".validate": "newData.hasChildren(['name', 'userId', 'phone', 'code']) && root.child('secretCodes/' + newData.child('code').val() + '/usedBy').val() === auth.uid"
+        ".validate": "newData.hasChildren(['name', 'userId', 'phone', 'code']) && root.child('secretCodes/' + newData.child('code').val() + '/usedBy').val() === auth.uid",
+        "email": { ".validate": "newData.isString() && newData.val().length <= 120 && newData.val().matches(/^[^ @]+@[^ @]+[.][^ @]+$/)" }
       }
     },
 
@@ -76,8 +78,78 @@
       ".read": true,
       "$reg": {
         ".write": "auth != null && (root.child('buses/' + $reg + '/driverUid').val() === auth.uid || root.child('buses/' + $reg + '/ownerUid').val() === auth.uid)",
-        ".validate": "!newData.exists() || (newData.hasChildren(['ts']) && (!newData.hasChild('lat') || (newData.child('lat').isNumber() && newData.child('lng').isNumber())))"
+        ".validate": "!newData.exists() || (newData.hasChildren(['ts']) && (!newData.hasChild('lat') || (newData.child('lat').isNumber() && newData.child('lng').isNumber())) && (newData.child('online').val() === false || root.child('billingStatus/' + root.child('buses/' + $reg + '/ownerUid').val() + '/status').val() !== 'empty'))"
       }
+    },
+
+    "settings": {
+      "billing": {
+        ".read": "auth != null && root.child('admins/' + auth.uid).val() === true",
+        ".write": "auth != null && root.child('admins/' + auth.uid).val() === true"
+      },
+      "payment": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('admins/' + auth.uid).val() === true"
+      }
+    },
+
+    "billing": {
+      ".read": "auth != null && root.child('admins/' + auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins/' + auth.uid).val() === true",
+      "$ownerUid": { ".read": "auth != null && auth.uid === $ownerUid" }
+    },
+
+    "billingStatus": {
+      ".read": "auth != null && root.child('admins/' + auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins/' + auth.uid).val() === true",
+      "$ownerUid": {
+        ".read": "auth != null && (auth.uid === $ownerUid || root.child('drivers/' + auth.uid + '/ownerUid').val() === $ownerUid)",
+        "status": { ".validate": "newData.val().matches(/^(active|low|empty)$/)" }
+      }
+    },
+
+    "usageCounts": {
+      ".read": "auth != null && root.child('admins/' + auth.uid).val() === true",
+      "$regKey": {
+        "$hour": {
+          ".write": "auth != null && root.child('buses/' + $regKey + '/driverUid').val() === auth.uid",
+          ".validate": "$hour.matches(/^[0-9]{10}$/) && newData.isNumber() && newData.val() > (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 5000"
+        }
+      }
+    },
+
+    "usage": {
+      ".read": "auth != null && root.child('admins/' + auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins/' + auth.uid).val() === true",
+      "$ownerUid": { ".read": "auth != null && auth.uid === $ownerUid" }
+    },
+
+    "usageAdmin": {
+      ".read": "auth != null && root.child('admins/' + auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins/' + auth.uid).val() === true"
+    },
+
+    "rechargeRequests": {
+      ".read": "auth != null && root.child('admins/' + auth.uid).val() === true",
+      "$ownerUid": {
+        ".read": "auth != null && auth.uid === $ownerUid",
+        "$id": {
+          ".write": "auth != null && ((auth.uid === $ownerUid && !data.exists() && root.child('owners/' + auth.uid).exists()) || root.child('admins/' + auth.uid).val() === true)",
+          ".validate": "newData.hasChildren(['amountInr', 'createdAt', 'status']) && newData.child('amountInr').isNumber() && newData.child('amountInr').val() >= 100 && newData.child('amountInr').val() <= 100000 && (root.child('admins/' + auth.uid).val() === true || (newData.child('status').val() === 'pending' && newData.child('createdAt').val() === now))",
+          "status": { ".validate": "newData.val().matches(/^(pending|confirmed|rejected)$/)" }
+        }
+      }
+    },
+
+    "transactions": {
+      ".read": "auth != null && root.child('admins/' + auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins/' + auth.uid).val() === true"
+    },
+
+    "ownerTransactions": {
+      ".read": "auth != null && root.child('admins/' + auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins/' + auth.uid).val() === true",
+      "$ownerUid": { ".read": "auth != null && auth.uid === $ownerUid" }
     },
 
     "crowd": {

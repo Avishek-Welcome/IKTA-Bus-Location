@@ -126,6 +126,7 @@ export async function create(_config, role) {
       persist();
     },
     async remove(path) { write(path, null); persist(); },
+    async increment(path, n) { write(path, (read(path) || 0) + n); persist(); },
     newKey: () => pushId(),
     async push(path, v) { const k = pushId(); write(`${path}/${k}`, v); persist(); return k; },
     async transaction(path, fn) {
