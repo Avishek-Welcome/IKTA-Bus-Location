@@ -1,9 +1,9 @@
 // IKTA Bus service worker — instant repeat loads + offline map shell.
-const VERSION = 'ikta-v28';
+const VERSION = 'ikta-v29';
 const SHELL = [
   './', 'index.html', 'driver.html', 'owner.html', 'favorites.html', 'coins.html', 'admin.html',
   'css/app.css', 'js/map-boot.js', 'js/common.js', 'js/app-bridge.js', 'js/api.js', 'js/favs.js', 'js/passenger-auth.js', 'js/firebase-config.js',
-  'js/passenger.js', 'js/driver.js', 'js/owner.js', 'js/owner-billing.js', 'js/favorites.js', 'js/coins.js', 'js/admin.js',
+  'js/passenger.js', 'js/driver.js', 'js/owner.js', 'js/owner-billing.js', 'js/favorites.js', 'js/coins.js', 'js/admin.js', 'js/admin-billing.js',
   'js/backend-firebase.js', 'js/backend-demo.js', 'js/demo-seed.js',
   'js/vector-base.js', 'js/road.js', 'lib/maplibre-gl/maplibre-gl.mjs', 'lib/maplibre-gl/maplibre-gl-shared.mjs',
   'lib/maplibre-gl/maplibre-gl-worker.mjs', 'lib/maplibre-gl/maplibre-gl.css',

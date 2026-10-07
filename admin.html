@@ -48,9 +48,18 @@
   </main>
   <main class="page no-nav hidden" id="dashView">
     <section class="hero">
-      <div class="row" style="position:relative;z-index:1"><div><h1>🛡️ Secret codes</h1><p>10-character, non-repeating, alphanumeric + special. Each code registers exactly one owner.</p></div>
+      <div class="row" style="position:relative;z-index:1"><div><h1>🛡️ Admin</h1><p>Owners' data balances and recharges, and one-time owner registration codes.</p></div>
         <span class="spacer"></span><button class="icon-btn" id="logoutBtn" aria-label="Sign out" style="background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.3);color:#fff"><i data-icon="logout"></i></button></div>
-      <div class="kpis"><div class="kpi"><b id="kTotal">0</b><span>Total</span></div><div class="kpi"><b id="kFree">0</b><span>Unused</span></div><div class="kpi"><b id="kUsed">0</b><span>Used</span></div></div>
+    </section>
+    <div class="chips" id="adminTabs" style="margin:16px 2px 4px">
+      <button class="chip active" data-tab="billing">💰 Billing</button><button class="chip" data-tab="codes">🔑 Owner codes</button>
+    </div>
+    <div id="billingView"><div class="skeleton"></div></div>
+    <div id="codesView" class="hidden">
+    <section class="card" style="margin-top:12px">
+      <h2>🛡️ Secret codes</h2>
+      <p class="muted small" style="margin-top:0">10-character, non-repeating, alphanumeric + special. Each code registers exactly one owner.</p>
+      <div class="kpis" style="margin-top:0"><div class="kpi" style="background:var(--surface-2);border-color:var(--line)"><b id="kTotal">0</b><span>Total</span></div><div class="kpi" style="background:var(--surface-2);border-color:var(--line)"><b id="kFree">0</b><span>Unused</span></div><div class="kpi" style="background:var(--surface-2);border-color:var(--line)"><b id="kUsed">0</b><span>Used</span></div></div>
     </section>
     <section class="card" style="margin-top:16px">
       <h2>✨ Generate codes</h2>
@@ -65,6 +74,7 @@
       <div class="chips"><button class="chip active" data-f="all">All</button><button class="chip" data-f="free">Unused</button><button class="chip" data-f="used">Used</button></div>
     </div>
     <section class="card table-wrap"><table class="table"><thead><tr><th>Code</th><th>Status</th><th>Used by</th><th>When</th><th></th></tr></thead><tbody id="codeRows"></tbody></table></section>
+    </div>
   </main>
   <script type="module" src="js/admin.js"></script>
 </body>

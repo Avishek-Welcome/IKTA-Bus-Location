@@ -1,6 +1,7 @@
 // IKTA Bus — Admin: generate one-time owner registration codes and audit their use.
 import { $, $$, esc, boot, toast, icon, setBusy, friendlyError, timeAgo, confirmBox, GOOGLE_G, googleSignIn, canGoogleSignIn } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
+import { startAdminBilling } from './admin-billing.js';
 
 boot();
 let api, codes = {}, filter = 'all';
@@ -54,6 +55,13 @@ $('#genForm').addEventListener('submit', async (e) => {
   } catch (ex) { toast(friendlyError(ex), 'bad'); } finally { setBusy(btn, false); }
 });
 
+// Billing / Owner codes tabs
+$$('#adminTabs [data-tab]').forEach((t) => t.addEventListener('click', () => {
+  $$('#adminTabs [data-tab]').forEach((x) => x.classList.toggle('active', x === t));
+  $('#billingView').classList.toggle('hidden', t.dataset.tab !== 'billing');
+  $('#codesView').classList.toggle('hidden', t.dataset.tab !== 'codes');
+}));
+
 $$('[data-f]').forEach((c) => c.addEventListener('click', () => { filter = c.dataset.f; $$('[data-f]').forEach((x) => x.classList.toggle('active', x === c)); render(); }));
 $('#codeRows').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-copy],[data-del]'); if (!b) return;
@@ -90,6 +98,10 @@ function render() {
     $('#notAdminCard').classList.toggle('hidden', !u || !!isAdmin);
     if (u && !isAdmin) { $('#naEmail').textContent = u.email || '—'; $('#naUid').textContent = u.uid; }
     demoBanner();
-    if (isAdmin) off = api.listen('secretCodes', (v) => { codes = v || {}; render(); });
+    if (isAdmin) {
+      const offCodes = api.listen('secretCodes', (v) => { codes = v || {}; render(); });
+      const offBilling = startAdminBilling(api, u);
+      off = () => { offCodes?.(); offBilling(); };
+    }
   });
 })();
