@@ -1,7 +1,7 @@
 // IKTA Bus — Driver console: sign in, live GPS broadcast, route & bus-stop editor.
 import {
   $, $$, esc, boot, store, toast, icon, haversine, createMap, userMovingMap, blockPageZoom, setupRotation, mapLangPicker, sheetSwipe, busIcon, stopIcon, glide, speedo, colorFor, CROWD, timeAgo,
-  idToEmail, friendlyError, setBusy, promptBox, confirmBox, wirePasswordToggles, fmtDist, debounce,
+  idToEmail, friendlyError, setBusy, promptBox, confirmBox, wirePasswordToggles, fmtDist, debounce, modal,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
 import { searchPlaces, measureRoad, stopsSig, decodePolyline } from './road.js';
@@ -73,6 +73,7 @@ async function enter(u) {
   user = u;
   profile = await api.get(`drivers/${u.uid}`);
   if (!profile) { await api.auth.signOut(); return; }
+  if (profile.ownerUid) api.listen(`billingStatus/${profile.ownerUid}`, onBillingStatus);
   $('#authView').classList.add('hidden');
   $('#appView').classList.remove('hidden');
   document.body.classList.add('map-page');
@@ -362,7 +363,28 @@ function flushUse() {
 }
 setInterval(flushUse, 60000);
 addEventListener('pagehide', flushUse);
+// ---------- Owner's data balance ----------
+// When it is used up the server refuses positions, so sharing can't start; low: a reminder.
+let balanceEmpty = false;
+function onBillingStatus(s) {
+  balanceEmpty = s?.status === 'empty';
+  if (balanceEmpty && sending) stopBroadcast(false);
+  if (!s || s.status === 'active') return;
+  const key = `ikta_drv_bal_${s.status}`;
+  try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch { /* private mode */ }
+  modal({
+    title: balanceEmpty ? 'Recharge needed' : 'Low data balance',
+    html: `<p style="margin-top:0">${balanceEmpty
+      ? 'Your bus owner\'s data balance is used up, so passengers can\'t see this bus. Ask your bus owner to recharge.'
+      : `Your bus owner's data balance is low (${s.pctLeft}% left). Please remind your bus owner to recharge.`}</p>`,
+    okText: 'OK', cancelText: '',
+  });
+}
 async function startBroadcast() {
+  if (balanceEmpty) {
+    modal({ title: 'Recharge needed', html: '<p style="margin-top:0">Your bus owner\'s data balance is used up, so this bus can\'t be shown to passengers. Ask your bus owner to recharge.</p>', okText: 'OK', cancelText: '' });
+    return;
+  }
   startGeo();
   startCompass(); // this tap lets iOS ask for compass access (the phone's top edge is the bus's head)
   toast('📱 Keep the phone upright in its holder, top edge toward the front of the bus', '', 5000);

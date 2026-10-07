@@ -4,6 +4,7 @@ import {
   attachStrength, wirePasswordToggles, friendlyError, keyOf, colorFor, busIcon, setBusHeading, setBusSpeed, speedChip, speedo, createMap, glide, CROWD, timeAgo, LIVE_FRESH_MS,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
+import { initBilling } from './owner-billing.js';
 
 boot();
 wirePasswordToggles();
@@ -159,6 +160,7 @@ async function enterDash(u) {
   $('#ownerAvatar').textContent = owner.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
   $('#ownerName').textContent = owner.name;
   paintOwner();
+  initBilling(api, u, owner);
   // Owners who registered before email was asked for: ask once per visit until it is set
   if (!owner.email) setTimeout(() => editContact(true), 800);
   api.listen(`owners/${u.uid}/buses`, (v) => { busKeys = Object.keys(v || {}); syncBusListeners(); render(); });
