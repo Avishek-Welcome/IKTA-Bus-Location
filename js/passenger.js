@@ -2,7 +2,7 @@
 import {
   $, $$, esc, boot, store, toast, icon, haversine, projectOnPath, fmtDist, fmtEta, timeAgo,
   createMap, userMovingMap, setupRotation, upgradeMap, mapLangPicker, mapLangSelect, sheetSwipe, setSheetState, sheetStateOf, busIcon, setBusHeading, setBusSpeed, speedChip, speedo, meIcon, stopIcon, glide, colorFor, CROWD, LIVE_FRESH_MS, unlockAudio, playAlertTone,
-  friendlyError, debounce,
+  friendlyError, debounce, modal,
 } from './common.js';
 import { connect, isDemo, demoBanner } from './api.js';
 import { addFav, removeFav, isFav, attachFavSync } from './favs.js';
@@ -764,3 +764,27 @@ if (busFilter && !sel.to) drawBusRoute();
   }
 })();
 addEventListener('resize', debounce(setPeek, 200));
+
+// ---------- Save data while unused ----------
+// Minimised app or hidden tab for 5 minutes: stop receiving live bus data (it is billed to the
+// bus owners' data balance). Not while a search waits for its 10-minute arrival alert.
+const IDLE_PAUSE_MS = 5 * 60 * 1000;
+let idleTimer = 0, dataPaused = false;
+document.addEventListener('visibilitychange', () => {
+  clearTimeout(idleTimer);
+  if (document.hidden) {
+    idleTimer = setTimeout(() => {
+      if (!api || !document.hidden || (alertsOn && sel.to)) return;
+      api.pause(); dataPaused = true;
+    }, IDLE_PAUSE_MS);
+    return;
+  }
+  if (!dataPaused) return;
+  dataPaused = false;
+  api.resume();
+  modal({
+    title: 'Live updates were stopped',
+    html: '<p style="margin-top:0">IKTA Bus stopped receiving live bus data because it was minimised (not used) for 5 minutes, to save data.</p><p class="muted">Live buses are back on now.</p>',
+    okText: 'OK', cancelText: '',
+  });
+});

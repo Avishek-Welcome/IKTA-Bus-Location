@@ -141,6 +141,8 @@ export async function create(_config, role) {
       return Promise.resolve();
     },
     onDisconnectCancel: () => Promise.resolve(),
+    pause() {},
+    resume() {},
     auth: {
       ready: () => Promise.resolve(),
       user: () => current,

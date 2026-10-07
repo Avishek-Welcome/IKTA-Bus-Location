@@ -32,7 +32,7 @@ export async function create(config, role, ver) {
     sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
   } = authMod;
   const {
-    getDatabase, ref, onValue, get, set, update, push, remove, runTransaction, serverTimestamp, onDisconnect, increment,
+    getDatabase, ref, onValue, get, set, update, push, remove, runTransaction, serverTimestamp, onDisconnect, increment, goOffline, goOnline,
   } = dbMod;
 
   const app = getApps().find((a) => a.name === role) || initializeApp(config, role);
@@ -91,6 +91,9 @@ export async function create(config, role, ver) {
     },
     onDisconnectUpdate: (path, v) => onDisconnect(r(path)).update(v),
     onDisconnectCancel: (path) => onDisconnect(r(path)).cancel(),
+    // Stops / restarts all syncing of this role's database (the passenger page while unused)
+    pause: () => goOffline(db),
+    resume: () => goOnline(db),
     auth: {
       ready: () => ready,
       user: () => auth.currentUser,
